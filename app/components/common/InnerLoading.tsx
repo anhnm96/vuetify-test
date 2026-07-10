@@ -1,0 +1,10 @@
+import type { SetupContext } from 'vue'
+import Spinner from './Spinner'
+
+export default function InnerLoading(_props: any, { slots }: SetupContext) {
+  return (
+    <div class="absolute inset-0 z-(--loading) grid place-items-center bg-abg/60 text-primary backdrop-blur-xs initial:text-xl">
+      {slots.default ? slots.default() : <Spinner />}
+    </div>
+  )
+}

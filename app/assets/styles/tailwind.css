@@ -1,0 +1,239 @@
+@import "tailwindcss/theme" layer(tailwind-theme);
+@import "tailwindcss/preflight" layer(tailwind-reset);
+@import "tailwindcss/utilities" layer(tailwind-utilities);
+
+@theme {
+  --font-heading: "Roboto", sans-serif;
+  --font-body: "Roboto", sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+
+  --color-background: rgb(var(--v-theme-background));
+  --color-surface: rgb(var(--v-theme-surface));
+  --color-on-surface: rgb(var(--v-theme-on-surface));
+
+  --color-primary: rgb(var(--v-theme-primary));
+  --color-success: rgb(var(--v-theme-success));
+  --color-info: rgb(var(--v-theme-info));
+  --color-warning: rgb(var(--v-theme-warning));
+  --color-error: rgb(var(--v-theme-error));
+
+  --breakpoint-*: initial;
+  --breakpoint-xs: 0px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --breakpoint-xxl: 2560px;
+
+  --container-xxl: 1600px;
+}
+
+@custom-variant light (&:where(.v-theme--light, .v-theme--light *));
+@custom-variant dark (&:where(.v-theme--dark, .v-theme--dark *, .dark, .dark *));
+
+/* safelist to ensure variables are always available */
+@source inline('font-heading');
+@source inline('font-body');
+@source inline('font-mono');
+
+/*
+  note: adopt and extend values from TailwindCSS
+*/
+@utility rounded-pill {
+  border-radius: 9999px
+}
+
+@utility rounded-circle {
+  border-radius: 50%
+}
+
+@utility rounded-shaped {
+  border-radius: 24px 0
+}
+
+@source inline('rounded');
+/* .25rem */
+@source inline('rounded-{none,sm,md,lg,xl,2xl,3xl,full,pill,circle,shaped}');
+
+/* MD3 elevation */
+@utility elevation-0 {
+  box-shadow: 0px 0px 0px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 0px 0px 0px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 0%, transparent);
+}
+
+@utility elevation-1 {
+  box-shadow: 0px 1px 2px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 1px 3px 1px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 2%, transparent);
+}
+
+@utility elevation-2 {
+  box-shadow: 0px 1px 2px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 2px 6px 2px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 4%, transparent);
+}
+
+@utility elevation-3 {
+  box-shadow: 0px 1px 3px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 4px 8px 3px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 6%, transparent);
+}
+
+@utility elevation-4 {
+  box-shadow: 0px 2px 3px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 6px 10px 4px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 8%, transparent);
+}
+
+@utility elevation-5 {
+  box-shadow: 0px 4px 4px 0px rgba(var(--v-shadow-color), var(--v-shadow-key-opacity, 0.3)), 0px 8px 12px 6px rgba(var(--v-shadow-color), var(--v-shadow-ambient-opacity, 0.15));
+  --v-elevation-overlay: color-mix(in srgb, var(--v-elevation-overlay-color) 10%, transparent);
+}
+
+@utility elevation-overlay {
+  background-image: linear-gradient(var(--v-elevation-overlay), var(--v-elevation-overlay));
+}
+
+/* safelist for elevation="..." props */
+@source inline('elevation-{0,1,2,3,4,5}');
+
+@source inline("{bg,text}-{blue,red,orange,green,neutral}-{50,{100..900..100},950}");
+
+@theme {
+  --popover: 300;
+  --sidebar: 150;
+  --dialog: 200;
+  --loading: 900;
+  --color-primary-950: var(--color-blue-950);
+  --color-primary-900: var(--color-blue-900);
+  --color-primary-800: var(--color-blue-800);
+  --color-primary-700: var(--color-blue-700);
+  --color-primary-600: var(--color-blue-600);
+  --color-primary-500: var(--color-blue-500);
+  --color-primary-400: var(--color-blue-400);
+  --color-primary-300: var(--color-blue-300);
+  --color-primary-200: var(--color-blue-200);
+  --color-primary-100: var(--color-blue-100);
+  --color-primary-50: var(--color-blue-50);
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-transparent: rgba(255, 255, 255, 0);
+  --color-info: light-dark(var(--color-blue-500), var(--color-blue-400));
+  --color-success: light-dark(var(--color-green-500), var(--color-green-400));
+  --color-warn: light-dark(var(--color-orange-500), var(--color-orange-400));
+  --color-error: light-dark(var(--color-red-500), var(--color-red-400));
+  --color-primary: var(--color-blue-500);
+  --color-text-default: light-dark(var(--color-slate-700), var(--color-slate-200));
+  --color-muted: light-dark(var(--color-slate-500), var(--color-slate-400));
+  --color-ring: light-dark(oklch(0.55 0.2 260), oklch(0.6 0.2 260));
+  --color-border: light-dark(oklch(0.88 0.02 280 / 0.5), oklch(0.35 0.02 260 / 0.5));
+  --color-elevated: light-dark(var(--color-slate-200), var(--color-slate-700));
+  --color-abg: light-dark(var(--color-slate-50), var(--color-slate-800));
+  --color-surface: light-dark(var(--color-white), var(--color-slate-900));
+  --color-surface-inverted: light-dark(var(--color-slate-900), var(--color-white));
+  --color-bright: light-dark(var(--color-white), var(--color-slate-200));
+  --color-ring: light-dark(var(--color-slate-300), var(--color-slate-600));
+  --color-input-bg: light-dark(var(--color-white), var(--color-slate-950));
+  --color-input-border: light-dark(var(--color-slate-300), var(--color-slate-600));
+}
+
+
+html {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+@custom-variant initial {
+  :where(&) {
+    @slot;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+
+  button {
+    cursor: pointer;
+
+    &:disabled,
+    &[aria-disabled='true'] {
+      cursor: not-allowed !important;
+      opacity: 0.7 !important;
+    }
+  }
+
+}
+
+.wrapper {
+  @apply mx-auto max-w-2xl lg:max-w-7xl;
+}
+
+.p-wrapper {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+@utility text-default {
+  color: var(--color-text-default);
+}
+
+@utility flex-center {
+  @apply justify-center items-center;
+}
+
+@utility min-w-btn {
+  @apply min-w-24;
+}
+
+@layer components {
+  @import "./components/button.css";
+  @import "./components/input.css";
+  @import "./components/table.css";
+  @import "./components/accordion.css";
+  @import "./components/dropdown.css";
+}
+
+.timecard-card {
+  @apply rounded-3xl border border-white/50 bg-white/60 px-6 py-4 shadow-lg backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-800/60;
+}
+
+.custom-input {
+  @apply text-default;
+}
+
+.custom-input .v-field {
+  @apply bg-input-bg rounded-md;
+}
+
+.custom-input .v-field__outline__start,
+.custom-input .v-field__outline__end {
+  @apply border-input-border opacity-100;
+}
+
+.custom-input .v-icon {
+  @apply opacity-100;
+}
+
+.custom-input .v-field__field {
+  @apply items-center;
+
+  .v-text-field__suffix {
+    @apply pb-0 pt-px min-h-0;
+  }
+}
+
+.custom-input .v-field__input {
+  @apply py-2 min-h-0 text-sm;
+}

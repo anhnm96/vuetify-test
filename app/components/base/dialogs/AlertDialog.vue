@@ -1,0 +1,84 @@
+<script lang="ts">
+import Dialog from '~/components/common/dialog/Dialog.vue'
+import DialogDescription from '~/components/common/dialog/DialogDescription.vue'
+import DialogTitle from '~/components/common/dialog/DialogTitle.vue'
+
+export interface AlertDialogProps {
+  title?: string
+  description?: string | string[]
+  confirmLabel?: string
+  severity?: Severity
+}
+</script>
+
+<script setup lang="ts">
+const { severity = 'info' } = defineProps<AlertDialogProps>()
+defineEmits<{
+  close: [value?: boolean]
+  afterLeave: []
+}>()
+
+const getVariant = computed(() => {
+  switch (severity) {
+    case 'success':
+      return { icon: 'ph:check-circle-bold', color: 'green' }
+    case 'error':
+      return { icon: 'ph:x-circle-bold', color: 'red' }
+    case 'warn':
+      return { icon: 'ph:warning-bold', color: 'orange' }
+    default:
+      return { icon: 'ph:info-bold', color: 'blue' }
+  }
+})
+</script>
+
+<template>
+  <Dialog
+    v-slot="{ setClose }"
+    :pt="{
+      panel: {
+        role: 'alertdialog',
+        class: 'w-full px-4 pb-4 pt-5 sm:min-w-sm sm:max-w-xl sm:w-auto sm:p-6',
+        style: { '--severity': `var(--color-${getVariant.color}-500)`,
+                 '--severity-light': `var(--color-${getVariant.color}-100)` },
+      },
+    }"
+    @after-leave="$emit('afterLeave')"
+  >
+    <!-- main -->
+    <div>
+      <!-- icon -->
+      <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-(--severity-light)">
+        <Icon class="text-2xl text-(--severity)" :name="getVariant.icon" />
+      </div>
+      <div class="mt-3 text-center sm:mt-5">
+        <!-- title -->
+        <DialogTitle v-if="title" class="mb-2 px-4 text-lg leading-6 font-semibold sm:px-6">
+          {{ title }}
+        </DialogTitle>
+        <!-- description -->
+        <div v-if="description" class="max-h-[40vh] overflow-auto px-4 outline-offset-2 sm:px-6">
+          <DialogDescription v-if="Array.isArray(description)" class="space-y-0.5">
+            <p v-for="(item, index) in description" :key="index" class="text-sm break-all whitespace-pre-line">
+              {{ item }}
+            </p>
+          </DialogDescription>
+          <DialogDescription v-else class="text-sm break-all whitespace-pre-line">
+            {{ description }}
+          </DialogDescription>
+        </div>
+      </div>
+    </div>
+    <!-- action -->
+    <div class="mt-5 sm:mt-6">
+      <button
+        type="button"
+        class="btn w-full px-4 text-sm shadow-sm"
+        :class="[`btn-${severity}`]"
+        @click="setClose();$emit('close', true)"
+      >
+        {{ confirmLabel || '確認' }}
+      </button>
+    </div>
+  </Dialog>
+</template>

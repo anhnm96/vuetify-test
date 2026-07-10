@@ -1,0 +1,3 @@
+.popover {
+  @apply border border-elevated shadow-sm rounded-md bg-surface;
+}

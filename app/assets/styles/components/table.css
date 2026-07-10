@@ -1,0 +1,50 @@
+.data-table {
+  @apply isolate w-full border-separate border-spacing-0;
+
+  thead {
+    @apply backdrop-blur-xs sticky top-0 z-10 bg-abg/60 font-medium;
+  }
+
+  tbody tr {
+    @apply transition-colors hover:bg-elevated/30;
+  }
+
+  tr td:first-child,
+  tr th:first-child {
+    @apply pl-4;
+  }
+
+  tr td:last-child,
+  tr th:last-child {
+    @apply pr-4;
+  }
+
+  th,
+  td {
+    @apply border-b border-elevated p-2;
+  }
+
+  tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  tr:has(> td:first-child input:checked) {
+    @apply bg-primary-100/50 dark:bg-primary-700/20;
+  }
+}
+
+.grid-table {
+  @apply grid grid-cols-[auto_1fr] border-elevated border-t border-l wrap-anywhere;
+
+  &>* {
+    @apply border-elevated border-r border-b p-4;
+  }
+
+  &.with-label>*:nth-child(odd) {
+    @apply bg-abg/60 flex items-center backdrop-blur-xl;
+  }
+
+  &.with-label>*:nth-child(even) {
+    @apply bg-abg/40 backdrop-blur-xs;
+  }
+}

@@ -1,0 +1,401 @@
+{
+  "scheduleId": 1079978,
+  "calendarId": 101682,
+  "scheduleCd": 2,
+  "referenceScheduleId": null,
+  "scheduleTitle": "todo0707",
+  "alldayFlg": "0",
+  "startDateString": "2026-07-07 18:00:00",
+  "endDateString": "2026-07-07 18:00:00",
+  "scheduleLocation": null,
+  "details": "sleep",
+  "urlLink": "",
+  "scheduleIconCd": "00",
+  "scheduleColor": null,
+  "notificationCd1": "03",
+  "notificationTime1": 15,
+  "notificationTimeUnit1": 1,
+  "notificationCd2": "01",
+  "notificationTime2": 0,
+  "notificationTimeUnit2": 1,
+  "privateScheduleFlg": "0",
+  "repeatId": null,
+  "attachedFileFlg": false,
+  "createUserName": "su",
+  "editable": true,
+  "repeat": null,
+  "meeting": null,
+  "todo": {
+    "todoListId": 17623,
+    "groupId": 28,
+    "groupName": "category1",
+    "todolistName": "todo0707",
+    "todolistText": "sleep",
+    "importanceDiv": 0,
+    "priorityDiv": 25,
+    "limitDate": "2026-07-07",
+    "limitTime": "18:00",
+    "complet": false,
+    "members": [
+      {
+        "userId": 25609,
+        "userName": "挽地"
+      },
+      {
+        "userId": 25610,
+        "userName": "tatsuhrio_ageishi"
+      },
+      {
+        "userId": 25611,
+        "userName": "上石A管理者"
+      },
+      {
+        "userId": 25612,
+        "userName": "上石A一般"
+      },
+      {
+        "userId": 25613,
+        "userName": "tsubasa_soma"
+      },
+      {
+        "userId": 25641,
+        "userName": "挽地一般"
+      },
+      {
+        "userId": 25674,
+        "userName": "takezawa"
+      },
+      {
+        "userId": 25740,
+        "userName": "森脇管理者"
+      },
+      {
+        "userId": 25741,
+        "userName": "森脇一般権限"
+      },
+      {
+        "userId": 25905,
+        "userName": "デモアカウント"
+      },
+      {
+        "userId": 25906,
+        "userName": "ageishi-test-admin"
+      },
+      {
+        "userId": 26037,
+        "userName": "kisu"
+      },
+      {
+        "userId": 26038,
+        "userName": "オレンジバード"
+      },
+      {
+        "userId": 26039,
+        "userName": "MYPC"
+      },
+      {
+        "userId": 26041,
+        "userName": "NGUYEN_TIEN_THANG"
+      },
+      {
+        "userId": 26104,
+        "userName": "thang"
+      },
+      {
+        "userId": 27027,
+        "userName": "kimu"
+      },
+      {
+        "userId": 27062,
+        "userName": "kimu2"
+      },
+      {
+        "userId": 27129,
+        "userName": "yoshida"
+      },
+      {
+        "userId": 27130,
+        "userName": "an"
+      },
+      {
+        "userId": 27131,
+        "userName": "baooo"
+      },
+      {
+        "userId": 27225,
+        "userName": "kisu23"
+      },
+      {
+        "userId": 27226,
+        "userName": "kisu3"
+      },
+      {
+        "userId": 27228,
+        "userName": "kisu"
+      },
+      {
+        "userId": 27324,
+        "userName": "シュレック"
+      },
+      {
+        "userId": 27325,
+        "userName": "takezawa2"
+      },
+      {
+        "userId": 27656,
+        "userName": "test3"
+      },
+      {
+        "userId": 27657,
+        "userName": "test2"
+      },
+      {
+        "userId": 27658,
+        "userName": "test1"
+      },
+      {
+        "userId": 27707,
+        "userName": "初心者"
+      },
+      {
+        "userId": 27823,
+        "userName": "thang001"
+      },
+      {
+        "userId": 28220,
+        "userName": "takezawa3"
+      },
+      {
+        "userId": 28221,
+        "userName": "takezawa4"
+      },
+      {
+        "userId": 28446,
+        "userName": "yoshida2"
+      },
+      {
+        "userId": 28612,
+        "userName": "testtest"
+      },
+      {
+        "userId": 29084,
+        "userName": "HelpUser"
+      },
+      {
+        "userId": 29139,
+        "userName": "moriwaki3"
+      },
+      {
+        "userId": 29304,
+        "userName": "HelpUserPc"
+      },
+      {
+        "userId": 29438,
+        "userName": "テストさん"
+      },
+      {
+        "userId": 29997,
+        "userName": "テストユーザ"
+      },
+      {
+        "userId": 30393,
+        "userName": "kisu5一般"
+      },
+      {
+        "userId": 30492,
+        "userName": "kisu6"
+      },
+      {
+        "userId": 30553,
+        "userName": "moriwaki4"
+      },
+      {
+        "userId": 30591,
+        "userName": "tsubasa_soma3"
+      },
+      {
+        "userId": 30628,
+        "userName": "test1234"
+      },
+      {
+        "userId": 30723,
+        "userName": "tsubasa_soma2"
+      },
+      {
+        "userId": 31420,
+        "userName": "thang1"
+      },
+      {
+        "userId": 32043,
+        "userName": "an2"
+      },
+      {
+        "userId": 34056,
+        "userName": "isoya"
+      },
+      {
+        "userId": 34651,
+        "userName": "HelpUser1"
+      },
+      {
+        "userId": 34652,
+        "userName": "HelpUser2"
+      },
+      {
+        "userId": 34653,
+        "userName": "HelpUser3"
+      },
+      {
+        "userId": 34783,
+        "userName": "sample01"
+      },
+      {
+        "userId": 35028,
+        "userName": "user66"
+      },
+      {
+        "userId": 35081,
+        "userName": "iso"
+      },
+      {
+        "userId": 35277,
+        "userName": "HelpUser4"
+      },
+      {
+        "userId": 35278,
+        "userName": "BaoH"
+      },
+      {
+        "userId": 35739,
+        "userName": "baouser2"
+      },
+      {
+        "userId": 36101,
+        "userName": "yuki"
+      },
+      {
+        "userId": 36729,
+        "userName": "thang_ad"
+      },
+      {
+        "userId": 36771,
+        "userName": "sample07"
+      },
+      {
+        "userId": 36772,
+        "userName": "admin02"
+      },
+      {
+        "userId": 36848,
+        "userName": "NGUYEN_TIEN_THANG01"
+      },
+      {
+        "userId": 36849,
+        "userName": "NGUYEN_TIEN_THANG02"
+      },
+      {
+        "userId": 36993,
+        "userName": "NGUYEN_TIEN_THANG003"
+      },
+      {
+        "userId": 37126,
+        "userName": "thang2"
+      },
+      {
+        "userId": 37789,
+        "userName": "yukiisoya"
+      },
+      {
+        "userId": 37790,
+        "userName": "thang23"
+      },
+      {
+        "userId": 37819,
+        "userName": "WorkflowUser"
+      },
+      {
+        "userId": 37853,
+        "userName": "thang5"
+      },
+      {
+        "userId": 37855,
+        "userName": "thang6"
+      },
+      {
+        "userId": 38379,
+        "userName": "isoyatest"
+      },
+      {
+        "userId": 38412,
+        "userName": "thang_del"
+      },
+      {
+        "userId": 38544,
+        "userName": "su"
+      },
+      {
+        "userId": 38643,
+        "userName": "ス"
+      },
+      {
+        "userId": 38709,
+        "userName": "岡野恵"
+      },
+      {
+        "userId": 38730,
+        "userName": "メールアカウント"
+      },
+      {
+        "userId": 38940,
+        "userName": "annewacc"
+      },
+      {
+        "userId": 39138,
+        "userName": "isoyu"
+      },
+      {
+        "userId": 39204,
+        "userName": "isotest"
+      },
+      {
+        "userId": 39237,
+        "userName": "isoyaaiueo"
+      },
+      {
+        "userId": 39270,
+        "userName": "佐藤次郎"
+      },
+      {
+        "userId": 39402,
+        "userName": "鈴木一郎"
+      },
+      {
+        "userId": 39435,
+        "userName": "isora"
+      },
+      {
+        "userId": 39567,
+        "userName": "thang7"
+      },
+      {
+        "userId": 40293,
+        "userName": "isoyatest002"
+      },
+      {
+        "userId": 40326,
+        "userName": "minhanh"
+      },
+      {
+        "userId": 40656,
+        "userName": "今西管理2"
+      },
+      {
+        "userId": 40657,
+        "userName": "今西一般2"
+      }
+    ],
+    "memberNum": 89,
+    "requestUserId": 38544,
+    "requestUserName": "su"
+  }
+}

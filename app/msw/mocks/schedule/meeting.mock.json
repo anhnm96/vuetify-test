@@ -1,0 +1,56 @@
+{
+    "data": {
+        "scheduleId": 1080072,
+        "calendarId": 101681,
+        "scheduleCd": 4,
+        "referenceScheduleId": null,
+        "scheduleTitle": "meeting",
+        "alldayFlg": "0",
+        "startDateString": "2026-07-06 16:30:00",
+        "endDateString": "2026-07-06 17:00:00",
+        "scheduleLocation": "",
+        "details": "",
+        "urlLink": "",
+        "scheduleIconCd": "32",
+        "scheduleColor": "008000",
+        "notificationCd1": "01",
+        "notificationTime1": 0,
+        "notificationTimeUnit1": 1,
+        "notificationCd2": "01",
+        "notificationTime2": 0,
+        "notificationTimeUnit2": 1,
+        "privateScheduleFlg": "0",
+        "repeatId": null,
+        "attachedFileFlg": false,
+        "createUserName": "minhanh",
+        "editable": true,
+        "repeat": null,
+        "meeting": {
+            "equipment": [
+                {
+                    "userId": 28149,
+                    "userName": "21"
+                }
+            ],
+            "invitees": [
+                {
+                    "userId": 29084,
+                    "userName": "HelpUser"
+                },
+                {
+                    "userId": 35278,
+                    "userName": "BaoH"
+                },
+                {
+                    "userId": 40326,
+                    "userName": "minhanh"
+                }
+            ],
+            "attendanceCd": "01",
+            "attendanceName": "出席",
+            "attendanceEnable": false,
+            "ownerUserId": 40326
+        },
+        "todo": null
+    }
+}

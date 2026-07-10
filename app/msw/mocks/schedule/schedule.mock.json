@@ -1,0 +1,40 @@
+{
+    "data": {
+        "scheduleId": 1079449,
+        "calendarId": 101681,
+        "scheduleCd": 1,
+        "referenceScheduleId": null,
+        "scheduleTitle": "legacy",
+        "alldayFlg": "0",
+        "startDateString": "2026-07-06 05:00:00",
+        "endDateString": "2026-07-06 06:00:00",
+        "scheduleLocation": "",
+        "details": "",
+        "urlLink": "",
+        "scheduleIconCd": "00",
+        "scheduleColor": "000000",
+        "notificationCd1": "03",
+        "notificationTime1": 15,
+        "notificationTimeUnit1": 1,
+        "notificationCd2": "01",
+        "notificationTime2": 0,
+        "notificationTimeUnit2": 1,
+        "privateScheduleFlg": "0",
+        "repeatId": 21654,
+        "attachedFileFlg": false,
+        "createUserName": "minhanh",
+        "editable": true,
+        "repeat": {
+            "repeatId": 21654,
+            "unit": "01",
+            "standard": "01",
+            "weekdays": [],
+            "interval": 1,
+            "endCond": "2",
+            "number": null,
+            "endDate": "2026-07-06"
+        },
+        "meeting": null,
+        "todo": null
+    }
+}
