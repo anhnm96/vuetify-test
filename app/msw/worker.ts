@@ -41,7 +41,7 @@ export default defineNuxtMswWorkerOption(() => {
       const data = await import('./mocks/inquiries/resolution-rate.mock.json')
       return HttpResponse.json(data.default)
     }),
-    http.get(`/api/schedule/list`, async () => {
+    http.post(`/api/schedule/list`, async () => {
       const data = await import('./mocks/schedule/events.mock.json')
       return HttpResponse.json(data.default)
     }),
@@ -53,7 +53,7 @@ export default defineNuxtMswWorkerOption(() => {
       const data = await import('./mocks/schedule/categories.mock.json')
       return HttpResponse.json(data.default)
     }),
-    http.get(`/api/schedule/todo/equipment-list`, async () => {
+    http.get(`/api/schedule/equipment-list`, async () => {
       const data = await import('./mocks/schedule/equipment-list.mock.json')
       return HttpResponse.json(data.default)
     }),
@@ -72,6 +72,7 @@ export default defineNuxtMswWorkerOption(() => {
   ]
 
   return {
+    baseURL: 'http://localhost:5173',
     handlers,
     workerOptions: {
       onUnhandledRequest: 'bypass',

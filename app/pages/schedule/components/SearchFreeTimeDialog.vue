@@ -9,8 +9,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: [value?: SearchTimeResponse]
   afterLeave: []
+  close: [value?: SearchTimeResponse]
 }>()
 
 const form = reactive({ searchDate: props.startDate, searchTime: props.startTime, alldayOut: false })
@@ -46,8 +46,8 @@ async function handleSearchFreeTime() {
       targetUserIds: targetUsers.value,
     }
     const res = await searchFreeTime(payload)
-    freeTime.value = res.data.list
-    result.value = res.data.list[0]
+    freeTime.value = res.list
+    result.value = res.list[0]
   } catch (err) {
     console.error(err)
   } finally {

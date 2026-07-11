@@ -57,7 +57,7 @@ let selectionInitialized = false
 watch(scheduleListRes, (value) => {
   if (value && !selectionInitialized) {
     selectionInitialized = true
-    selectedCalendarIds.value = [...(value.data.ownCalendarList ?? []), ...(value.data.otherCalendarList ?? [])]
+    selectedCalendarIds.value = [...(value.ownCalendarList ?? []), ...(value.otherCalendarList ?? [])]
       .map(calendar => calendar.calendarId)
   }
   // Re-filter once new data arrives after navigation.
@@ -127,7 +127,7 @@ function goToNext() {
 function updateEvents() {
   const selected = new Set(selectedCalendarIds.value.map(String))
 
-  events.value = (scheduleListRes.value?.data.scheduleList ?? [])
+  events.value = (scheduleListRes.value?.scheduleList ?? [])
     .filter((schedule) => {
       // only show events whose calendar is checked in the sidebar
       if (!selected.has(String(schedule.viewCalendarId))) {
@@ -214,7 +214,7 @@ async function startTime(nativeEvent: Event, tms: any) {
       start: createStart.value,
       end: createStart.value,
       timed: true,
-      calendarColor: scheduleListRes.value?.data.editCalendarList?.[0]?.calendarColor || '000000',
+      calendarColor: scheduleListRes.value?.editCalendarList?.[0]?.calendarColor || '000000',
     } as ScheduleEventWithCalendar
     events.value.push(createEvent.value)
   }
@@ -230,7 +230,7 @@ async function onClickEvent(event: Event, data: any) {
     component: markRaw(CreateScheduleDialog),
     props: {
       startTimestamp: data.event.start,
-      calendars: scheduleListRes.value?.data.editCalendarList || [],
+      calendars: scheduleListRes.value?.editCalendarList || [],
       event: data.event,
     },
   })
@@ -277,7 +277,7 @@ async function endDrag(nativeEvent: Event) {
       props: {
         startTimestamp: createEvent.value.start,
         endTimestamp: createEvent.value.end,
-        calendars: scheduleListRes.value?.data.editCalendarList || [],
+        calendars: scheduleListRes.value?.editCalendarList || [],
       },
     })
     if (res) {
@@ -369,8 +369,8 @@ function toTime(tms: any) {
     <Sidebar
       v-model:open="openSidebar"
       v-model:selected="selectedCalendarIds"
-      :own-calendar-list="scheduleListRes?.data.ownCalendarList || []"
-      :other-calendar-list="scheduleListRes?.data.otherCalendarList || []"
+      :own-calendar-list="scheduleListRes?.ownCalendarList || []"
+      :other-calendar-list="scheduleListRes?.otherCalendarList || []"
     />
     <!-- Main Content -->
     <div class="p-wrapper flex-1 overflow-hidden pt-4 pb-14">

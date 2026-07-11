@@ -13,7 +13,7 @@ defineEmits<{
 
 const { data, refresh, status } = useAsyncData('attendance-list', () => getMeetingAttendance(props.scheduleId), {
   default: () => [],
-  transform: res => res.data.list,
+  transform: res => res.list,
 })
 const attendanceTypeOptions = [
   { label: '全て表示', value: '-1' },

@@ -187,14 +187,6 @@ function focusSearch() {
   searchRef.value?.focus()
 }
 
-// 名前から安定したアバター色を生成（テーマ非依存・本人識別用）
-// Màu avatar ổn định theo tên người (không phụ thuộc theme)
-function hashColor(str) {
-  let h = 0
-  for (let i = 0; i < (str || '').length; i++) h = (h * 31 + str.charCodeAt(i)) % 360
-  return `hsl(${h} 62% 52%)`
-}
-
 /* ── Confirm / Cancel ──────────────────────────────────────── */
 function onConfirm() {
   emit('update:modelValue', [...tempSelected.value])

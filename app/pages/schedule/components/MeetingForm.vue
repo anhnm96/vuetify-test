@@ -2,6 +2,7 @@
 import type { DetailPersonalScheduleEvent, EditCalendarItem, UpsertMeetingSchedulePayload } from '@/types/schedule'
 import dayjs from 'dayjs/esm'
 import { omit } from 'lodash-es'
+import QuickPickDialog from '~/components/common/QuickPickDialog.vue'
 import UserSelectModal from '~/components/common/UserSelectModal.vue'
 import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP, SCHEDULE_TYPE_LIST, textColors } from '~/constants/schedule'
 import { getEquipmentList, getEventDetail, getInviteeList, upsertMeetingSchedule } from '~/services/schedule'
@@ -88,10 +89,9 @@ if (props.event) {
 
 const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail(props.event?.scheduleId as number),
-  { immediate: isEditMode, transform: (res) => {
+  () => getEventDetail('meeting'),
+  { immediate: isEditMode, transform: (data) => {
     try {
-      const data = res.data
       let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
       let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
       // hh:mm:ss -> hhmm
@@ -136,15 +136,15 @@ const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
 )
 
 const { data: equipmentList, pending: pendingGetEquipmentList, error: getEquipmentListError, refresh: fetchEquipmentList } = useAsyncData('equiment-list', () => getEquipmentList(), {
-  transform: res => res.data.list,
+  transform: res => res.list,
 })
 
 const { data: groupList, pending: pendingGetGroupList, error: getGroupListError, refresh: fetchGroupList } = useAsyncData(() => getInviteeList(), {
   transform: (res) => {
     if (!isEditMode)
-      formRef.value?.setFieldValue('invitees', [res.data.user])
-    currentUserId.value = (res.data.user as any)?.userId
-    return res.data.list
+      formRef.value?.setFieldValue('invitees', [res.user])
+    currentUserId.value = (res.user as any)?.userId
+    return res.list
   },
 })
 
@@ -203,6 +203,33 @@ function focusField(fieldName: string) {
 const showEquipmentsSelectDialog = ref(false)
 async function onOpenSelectEquimentsDialog() {
   showEquipmentsSelectDialog.value = true
+}
+
+const items = [
+  { label: 'Option 1', value: 1 },
+  { label: 'Option 2', value: 2 },
+  { label: 'Option 3', value: 3 },
+  { label: 'Option 4', value: 4 },
+  { label: 'Option 5', value: 5 },
+  { label: 'Option 6', value: 6 },
+  { label: 'Option 7', value: 7 },
+  { label: 'Option 8', value: 8 },
+  { label: 'Option 9', value: 9 },
+  { label: 'Option 10', value: 10 },
+  { label: 'Option 11', value: 11 },
+  { label: 'Option 12', value: 12 },
+  { label: 'Option 13', value: 13 },
+]
+async function openQuickPickDialog() {
+  const res = await dialogStore.showDialog({
+    component: markRaw(QuickPickDialog),
+    props: {
+      items,
+      checkDisable: (item: any) => item.value === 3 || item.value === 4 || item.value === 5, // Example disable logic
+      initialItem: [items[0], items[1], items[2]], // Example initial selected items
+    },
+  })
+  console.log('🔍 ~ openQuickPickDialog ~ res:', res)
 }
 
 const showUsersSelectDialog = ref(false)
@@ -324,6 +351,9 @@ const notificationUnits = [
           >
             設備を選択
           </Button>
+          <button type="button" @click="openQuickPickDialog">
+            Open quick pick
+          </button>
           <div v-if="getEquipmentListError" class="flex items-center gap-1">
             <p>データの取得に失敗しました。</p>
             <button

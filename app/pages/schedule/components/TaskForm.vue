@@ -62,10 +62,9 @@ if (props.event) {
 
 const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail(props.event?.scheduleId as number),
-  { immediate: isEditMode, transform: (res) => {
+  () => getEventDetail('task'),
+  { immediate: isEditMode, transform: (data) => {
     try {
-      const data = res.data
       // hh:mm -> hhmm
       const limitTime = data.todo?.limitTime?.replace(':', '') ?? ''
       formRef.value?.setValues({
@@ -100,15 +99,15 @@ const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
 const { data: groupList, pending: pendingGetGroupList, error: getGroupListError, refresh: fetchGroupList } = useAsyncData(() => getInviteeList(), {
   transform: (res) => {
     // if (!isEditMode)
-    formRef.value?.setFieldValue('members', [res.data.user])
-    currentUserId.value = (res.data.user as any)?.userId
-    return res.data.list
+    formRef.value?.setFieldValue('members', [res.user])
+    currentUserId.value = (res.user as any)?.userId
+    return res.list
   },
 })
 
 const { data: categories, pending: pendingGetCategories, error: getCategoriesError, refresh: fetchCategories } = useAsyncData(() => getTaskScheduleCategories(), {
   transform: (res) => {
-    return [{ groupId: 0, groupName: '-- 選択 --' }, ...res.data.list]
+    return [{ groupId: 0, groupName: '-- 選択 --' }, ...res.list]
   },
 })
 

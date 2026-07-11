@@ -28,7 +28,11 @@ export function useCheckbox<T>(options: UseCheckboxOptions<T>) {
   const lastCheckedIndex = ref(-1)
   const filteredItems = computed(() => items.value.filter(canSelectItemFn))
   const canSelectAllItems = computed(() => filteredItems.value.length > 0)
-  const isAllSelected = computed(() => selectedItems.value.length > 0 && selectedItems.value.length === filteredItems.value.length)
+  const isAllSelected = computed(() => {
+    if (filteredItems.value.length === 0) return false
+    const selected = new Set(selectedItems.value)
+    return filteredItems.value.every(item => selected.has(getValue(item)))
+  })
 
   function getValue(item: T) {
     if (typeof valueAdapter === 'string') {
@@ -82,8 +86,15 @@ export function useCheckbox<T>(options: UseCheckboxOptions<T>) {
     }
   }
 
-  function clearSelectedItems() {
-    selectedItems.value = []
+  function clearSelectedItems(force?: boolean) {
+    if (force) {
+      selectedItems.value = []
+      return
+    }
+    selectedItems.value = selectedItems.value.filter((value) => {
+      const item = items.value.find(i => getValue(i) === value)
+      return item ? !canSelectItemFn(item) : false
+    })
   }
 
   return {

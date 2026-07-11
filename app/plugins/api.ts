@@ -30,19 +30,20 @@ export default defineNuxtPlugin(() => {
     }
 
     // upload file with progress
-    if (options.onUploadProgress) {
-      try {
-        const response = await uploadFileWithProgress(request.toString(), options.onUploadProgress, options)
+    // if (options.onUploadProgress) {
+    //   try {
+    //     const response = await uploadFileWithProgress(request.toString(), options.onUploadProgress, options)
 
-        return response.data as T['data']
-      } catch (error: any) {
-        console.error(error)
-      }
-      return
-    }
+    //     return response.data as T['data']
+    //   } catch (error: any) {
+    //     console.error(error)
+    //   }
+    //   return
+    // }
 
     // normal request
     const response = await $api<T>(request, _options as any)
+    console.log('🔍 ~ wrappedApi ~ response:', response)
 
     if (response.status && response.status !== 0) {
       if (_options.showAlertOnError) {
@@ -56,8 +57,7 @@ export default defineNuxtPlugin(() => {
       response.data = snakeToCamelKeys(response.data) as any
     }
 
-    return response
-    // return response.data as T['data']
+    return response.data as T['data']
   }
 
   // expose to useNuxtApp().$api

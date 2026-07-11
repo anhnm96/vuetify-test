@@ -98,10 +98,9 @@ if (props.event) {
 
 const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail(props.event?.scheduleId as number),
-  { immediate: isEditMode, transform: (res) => {
+  () => getEventDetail('schedule'),
+  { immediate: isEditMode, transform: (data) => {
     try {
-      const data = res.data
       let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
       let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
       // hh:mm:ss -> hhmm

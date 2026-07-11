@@ -32,8 +32,8 @@
     "vue": "^3.5.30",
     "vue-router": "^5.1.0",
     "vue-sonner": "^2.0.9",
-    "vuetify": "^4.0.2",
-    "vuetify-nuxt-module": "^1.0.0-beta.1"
+    "vuetify": "^4.1.4",
+    "vuetify-nuxt-module": "1.0.0-rc.2"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
@@ -49,7 +49,7 @@
     "msw": "^2.15.0",
     "sass": "^1.98.0",
     "tailwindcss": "^4.2.1",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vue-component-type-helpers": "^3.3.7"
   },
   "msw": {

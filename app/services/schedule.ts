@@ -74,7 +74,7 @@ export function replyMeetingAttendance(payload: ReplyMeetingAttendancePayload) {
   })
 }
 
-export function getMeetingAttendance(scheduleId: string) {
+export function getMeetingAttendance(scheduleId: number | string) {
   return useNuxtApp().$api<PaginatedResponse<AttendanceItem>>(`/schedule/attendance-list/${scheduleId}`)
 }
 

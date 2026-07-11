@@ -8,6 +8,8 @@ type Falsy = false | '' | 0 | null | undefined
 type LooseAutocomplete<T extends string> = T | Omit<string, T>
 
 interface ApiResponse<T> {
+  status: number
+  statusText: string
   data: T
 }
 

@@ -58,3 +58,20 @@ export function getErrorMessage(error: unknown, defaultMessage = 'Unknown Error'
 
   return defaultMessage
 }
+
+export function hashColor(str: string) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360
+  return `hsl(${h} 62% 52%)`
+}
+
+export function getPtValue(pt: Record<string, any> | undefined, key: string) {
+  if (!pt) return
+  const value = pt[key]
+
+  if (typeof value === 'string' || Array.isArray(value)) {
+    return { class: value }
+  }
+
+  return value
+}

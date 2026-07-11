@@ -4,7 +4,7 @@ import type { NuxtPage } from 'nuxt/schema'
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-21',
   devtools: { enabled: false },
-  // ssr: false,
+  ssr: false,
    modules: [
     '@nuxt/fonts',
     'vuetify-nuxt-module',
