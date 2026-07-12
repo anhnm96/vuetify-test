@@ -183,6 +183,41 @@ export interface SearchTimeResponse {
   selected: boolean
 }
 
+/**
+ * The shape held by the meeting <Form>. It differs from the payload on purpose:
+ * dates/times are split for the pickers, equipments/invitees keep the full
+ * `UserOption` objects so chips can render names, and a few edit-only fields
+ * exist purely for display. Map to the payload with `meetingFormToPayload`.
+ */
+export interface MeetingFormValues {
+  scheduleTitle: string
+  startDate: string
+  startTime: string
+  endDate: string
+  endTime: string
+  equipments: UserOption[]
+  invitees: UserOption[]
+  scheduleIconCd: string
+  scheduleColor: string
+  notificationCd1: string
+  notificationTime1: number
+  notificationTimeUnit1: number
+  notificationCd2: string
+  notificationTime2: number
+  notificationTimeUnit2: number
+  scheduleLocation?: string
+  details?: string
+  urlLink?: string
+  alldayFlg?: string
+  scheduleId?: number
+  // edit-only, display purposes (not sent to the API)
+  scheduleCd?: number
+  attendanceCd?: string
+  attendanceName?: string
+  editable?: boolean
+  ownerUserId?: number
+}
+
 export interface UpsertMeetingSchedulePayload {
   scheduleId?: number
   scheduleTitle: string

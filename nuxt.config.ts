@@ -5,15 +5,16 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-12-21',
   devtools: { enabled: false },
   ssr: false,
-   modules: [
+  modules: [
     '@nuxt/fonts',
     'vuetify-nuxt-module',
     '@pinia/nuxt',
+    '@pinia/colada-nuxt',
     '@vueuse/nuxt',
     '@nuxt/icon',
     'vue-sonner/nuxt',
     '@vee-validate/nuxt',
-    '@crazydos/nuxt-msw'
+    '@crazydos/nuxt-msw',
   ],
   hooks: {
     'pages:extend': function (pages) {
@@ -45,7 +46,7 @@ export default defineNuxtConfig({
   imports: {
     dirs: ['composables/*/index.{ts,js,mjs,mts}'],
   },
-   icon: {
+  icon: {
     mode: 'css',
     cssLayer: 'base',
   },
@@ -79,20 +80,25 @@ export default defineNuxtConfig({
       display: {
         mobileBreakpoint: 'md',
         thresholds: {
-          xs: 0, sm: 600, md: 960, lg: 1280, xl: 1920, xxl: 2560,
+          xs: 0,
+          sm: 600,
+          md: 960,
+          lg: 1280,
+          xl: 1920,
+          xxl: 2560,
         },
       },
-       locale: {
+      locale: {
         locale: 'ja',
       },
       localeMessages: ['ja'],
     },
   },
   unhead: {
-      legacy: true,
+    legacy: true,
     renderSSRHeadOptions: {
       omitLineBreaks: false,
-    }
+    },
   },
   devServer: {
     port: 5173,

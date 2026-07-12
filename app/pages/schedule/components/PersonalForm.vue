@@ -2,10 +2,10 @@
 import type { DetailPersonalScheduleEvent, EditCalendarItem, UpsertDetailSchedulePayload } from '@/types/schedule'
 import dayjs from 'dayjs/esm'
 import { omit } from 'lodash-es'
-import RepeatMannerConfirmDialog from './RepeatMannerConfirmDialog.vue'
-import RepeatSettingsDialog from './RepeatSettingsDialog.vue'
 import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP, SCHEDULE_TYPE_LIST, textColors } from '~/constants/schedule'
 import { getEventDetail, upsertDetailSchedule } from '~/services/schedule'
+import RepeatMannerConfirmDialog from './RepeatMannerConfirmDialog.vue'
+import RepeatSettingsDialog from './RepeatSettingsDialog.vue'
 
 const props = defineProps<{
   startTimestamp: number

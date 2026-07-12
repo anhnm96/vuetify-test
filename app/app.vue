@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { PiniaColadaDevtools } from '@pinia/colada-devtools'
 import { Toaster } from 'vue-sonner'
 
 const darkMode = ref(true)
@@ -25,5 +26,6 @@ watch(darkMode, (val) => {
       position="bottom-right"
       :theme="darkMode ? 'dark' : 'light'"
     />
+    <PiniaColadaDevtools />
   </v-app>
 </template>

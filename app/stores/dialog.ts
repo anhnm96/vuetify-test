@@ -1,7 +1,20 @@
-import type { ComponentEmit, ComponentProps } from 'vue-component-type-helpers'
+import type { ComponentProps } from 'vue-component-type-helpers'
 import type { DialogRootProps } from '~/components/common/dialog/Dialog.vue'
 import AlertDialog from '~/components/base/dialogs/AlertDialog.vue'
 import ConfirmDialog from '~/components/base/dialogs/ConfirmDialog.vue'
+
+/**
+ * The payload a dialog resolves with, i.e. the argument of its `close` emit.
+ *
+ * Vue exposes every declared emit as an individual `on<Event>` handler prop, so
+ * we read it from the `onClose` prop rather than from the (overloaded) emit
+ * function. Falls back to `void` when a component has no
+ * `close` emit. e.g. `emit('close', value?: T)` -> `T | undefined`.
+ */
+type CloseEmitPayload<T extends Component>
+  = ComponentProps<T> extends { onClose?: infer H }
+    ? NonNullable<H> extends (...args: infer A) => any ? A[0] : void
+    : void
 
 export interface Dialog<T extends Component> {
   id?: string | number
@@ -15,16 +28,8 @@ export const useDialogStore = defineStore('dialog', () => {
   let id = 0
   const dialogs = ref<Dialog<Component>[]>([])
 
-  // the 'emit close' must be defined last in component defineEmits
   function showDialog<T extends Component>(dialog: Omit<Dialog<T>, 'resolve'>) {
-    type CloseEmit = ComponentEmit<T> extends {
-      (event: infer E, ...args: infer Args): infer Return
-    } ? E extends 'close'
-        ? (event: E, ...args: Args) => Return
-        : never
-      : never
-
-    return new Promise<Parameters<CloseEmit>[1]>((resolve) => {
+    return new Promise<CloseEmitPayload<T>>((resolve) => {
       dialogs.value.push({
         component: dialog.component,
         id: dialog.id || id++,

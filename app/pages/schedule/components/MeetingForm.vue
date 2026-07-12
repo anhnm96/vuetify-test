@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { DetailPersonalScheduleEvent, EditCalendarItem, UpsertMeetingSchedulePayload } from '@/types/schedule'
+import type { DetailPersonalScheduleEvent, EditCalendarItem, MeetingFormValues, UpsertMeetingSchedulePayload } from '@/types/schedule'
 import dayjs from 'dayjs/esm'
-import { omit } from 'lodash-es'
 import QuickPickDialog from '~/components/common/QuickPickDialog.vue'
 import UserSelectModal from '~/components/common/UserSelectModal.vue'
 import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP, SCHEDULE_TYPE_LIST, textColors } from '~/constants/schedule'
@@ -40,7 +39,66 @@ const scheduleSchema = {
   endTime: 'required',
 }
 
-const initialValues = reactive({
+/** Map a fetched event onto the form model. Shared by the initial values (edit
+ * mode) and the detail refetch so the event→form mapping lives in one place. */
+function eventToFormValues(event: DetailPersonalScheduleEvent): MeetingFormValues {
+  const [startDate, startTimeRaw] = event.startDateString.split(' ') as [string, string]
+  const [endDate, endTimeRaw] = event.endDateString.split(' ') as [string, string]
+  return {
+    scheduleCd: event.scheduleCd,
+    scheduleTitle: event.scheduleTitle,
+    alldayFlg: event.alldayFlg,
+    startDate,
+    // hh:mm:ss -> hhmm
+    startTime: startTimeRaw.replace(':', '').slice(0, 4),
+    endDate,
+    endTime: endTimeRaw.replace(':', '').slice(0, 4),
+    scheduleLocation: event.scheduleLocation,
+    details: event.details,
+    urlLink: event.urlLink ?? undefined,
+    scheduleIconCd: event.scheduleIconCd,
+    scheduleColor: event.scheduleColor ?? '000000',
+    scheduleId: event.scheduleId,
+    notificationCd1: event.notificationCd1 ?? '01',
+    notificationTime1: event.notificationTime1 ?? 0,
+    notificationTimeUnit1: event.notificationTimeUnit1 ?? 1,
+    notificationCd2: event.notificationCd2 ?? '01',
+    notificationTime2: event.notificationTime2 ?? 0,
+    notificationTimeUnit2: event.notificationTimeUnit2 ?? 1,
+    editable: event.editable,
+    equipments: event.meeting?.equipment ?? [],
+    invitees: event.meeting?.invitees ?? [],
+    attendanceCd: event.meeting?.attendanceCd,
+    attendanceName: event.meeting?.attendanceName,
+    ownerUserId: event.meeting?.ownerUserId,
+  }
+}
+
+/** Map the form model to the API payload. The single typed boundary between the
+ * form and `upsertMeetingSchedule` — no `omit`, no cast. */
+function meetingFormToPayload(v: MeetingFormValues): UpsertMeetingSchedulePayload {
+  return {
+    scheduleId: v.scheduleId,
+    scheduleTitle: v.scheduleTitle,
+    start: `${v.startDate} ${v.startTime.slice(0, 2)}:${v.startTime.slice(2)}`,
+    end: `${v.endDate} ${v.endTime.slice(0, 2)}:${v.endTime.slice(2)}`,
+    scheduleLocation: v.scheduleLocation,
+    details: v.details,
+    urlLink: v.urlLink,
+    equipmentIds: v.equipments?.map(e => e.userId),
+    inviteeUserIds: (v.invitees ?? []).map(e => e.userId),
+    scheduleIconCd: v.scheduleIconCd,
+    scheduleColor: v.scheduleColor,
+    notificationCd1: v.notificationCd1,
+    notificationTime1: v.notificationTime1,
+    notificationTimeUnit1: v.notificationTimeUnit1,
+    notificationCd2: v.notificationCd2,
+    notificationTime2: v.notificationTime2,
+    notificationTimeUnit2: v.notificationTimeUnit2,
+  }
+}
+
+const initialValues = reactive<MeetingFormValues>({
   scheduleTitle: '無題の予定',
   equipments: [],
   invitees: [],
@@ -58,33 +116,7 @@ const initialValues = reactive({
   notificationTimeUnit2: 1,
 })
 if (props.event) {
-  let [startDate, startTime] = props.event.startDateString.split(' ') as [string, string]
-  let [endDate, endTime] = props.event.endDateString.split(' ') as [string, string]
-  // hh:mm:ss -> hhmm
-  startTime = startTime.replace(':', '').slice(0, 4)
-  endTime = endTime.replace(':', '').slice(0, 4)
-
-  Object.assign(initialValues, {
-    scheduleCd: props.event.scheduleCd,
-    scheduleTitle: props.event.scheduleTitle,
-    alldayFlg: props.event.alldayFlg,
-    startDate,
-    startTime,
-    endDate,
-    endTime,
-    scheduleLocation: props.event.scheduleLocation,
-    details: props.event.details,
-    urlLink: props.event.urlLink,
-    scheduleIconCd: props.event.scheduleIconCd,
-    scheduleColor: props.event.scheduleColor ?? '000000',
-    scheduleId: props.event.scheduleId,
-    notificationCd1: props.event.notificationCd1 ?? '01',
-    notificationTime1: props.event.notificationTime1 ?? 0,
-    notificationTimeUnit1: props.event.notificationTimeUnit1 ?? 1,
-    notificationCd2: props.event.notificationCd2 ?? '01',
-    notificationTime2: props.event.notificationTime2 ?? 0,
-    notificationTimeUnit2: props.event.notificationTimeUnit2 ?? 1,
-  })
+  Object.assign(initialValues, eventToFormValues(props.event))
 }
 
 const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
@@ -92,40 +124,9 @@ const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   () => getEventDetail('meeting'),
   { immediate: isEditMode, transform: (data) => {
     try {
-      let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
-      let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
-      // hh:mm:ss -> hhmm
-      startTime = startTime.replace(':', '').slice(0, 4)
-      endTime = endTime.replace(':', '').slice(0, 4)
       formRef.value?.setValues({
         ...initialValues,
-        ...{
-          scheduleTitle: data.scheduleTitle,
-          alldayFlg: data.alldayFlg,
-          startDate,
-          startTime,
-          endDate,
-          endTime,
-          scheduleLocation: data.scheduleLocation,
-          details: data.details,
-          urlLink: data.urlLink,
-          scheduleIconCd: data.scheduleIconCd,
-          scheduleColor: data.scheduleColor ?? '000000',
-          scheduleId: data.scheduleId,
-          notificationCd1: data.notificationCd1 ?? '01',
-          notificationTime1: data.notificationTime1 ?? 0,
-          notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
-          notificationCd2: data.notificationCd2 ?? '01',
-          notificationTime2: data.notificationTime2 ?? 0,
-          notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
-          editable: data.editable,
-          meeting: data.meeting,
-          attendanceCd: data.meeting?.attendanceCd,
-          attendanceName: data.meeting?.attendanceName,
-          equipments: data.meeting?.equipment,
-          invitees: data.meeting?.invitees,
-          ownerUserId: data.meeting?.ownerUserId,
-        },
+        ...eventToFormValues(data),
       })
       return data
     } catch (err) {
@@ -150,29 +151,7 @@ const { data: groupList, pending: pendingGetGroupList, error: getGroupListError,
 
 async function submitForm(values: any) {
   try {
-    // Process the validated form values
-    const payload = omit(values, [
-      'startDate',
-      'startTime',
-      'endDate',
-      'endTime',
-      'editable',
-      'meeting',
-      'equipments',
-      'invitees',
-      'attendanceCd',
-      'attendanceName',
-      'ownerUserId',
-    ])
-
-    payload.start = `${values.startDate} ${values.startTime.slice(0, 2)}:${values.startTime.slice(2)}`
-    payload.end = `${values.endDate} ${values.endTime.slice(0, 2)}:${values.endTime.slice(2)}`
-    if (values.equipments) {
-      payload.equipmentIds = values.equipments.map((e: UserOption) => e.userId)
-    }
-    payload.inviteeUserIds = values.invitees.map((e: UserOption) => e.userId)
-
-    await upsertMeetingSchedule(payload as UpsertMeetingSchedulePayload)
+    await upsertMeetingSchedule(meetingFormToPayload(values))
     emit('close', true)
     props.setClose()
     toast.show({ title: `予定を${isEditMode ? '更新' : '登録'}しました。`, severity: 'success' })
