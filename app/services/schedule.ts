@@ -68,18 +68,18 @@ export function upsertMeetingSchedule(payload: UpsertMeetingSchedulePayload) {
 }
 
 export function replyMeetingAttendance(payload: ReplyMeetingAttendancePayload) {
-  return useNuxtApp().$api<ApiResponse<ReplyMeetingAttendanceResponse>>('/schedule/attendance ', {
+  return useNuxtApp().$api<ApiResponse<ReplyMeetingAttendanceResponse>>('/schedule/attendance', {
     method: 'POST',
     body: payload,
   })
 }
 
-export function getMeetingAttendance(scheduleId: number | string) {
+export function getMeetingAttendance(scheduleId: string | number) {
   return useNuxtApp().$api<PaginatedResponse<AttendanceItem>>(`/schedule/attendance-list/${scheduleId}`)
 }
 
 export function upsertTaskSchedule(payload: UpsertTaskSchedulePayload) {
-  return useNuxtApp().$api<ApiResponse<UpsertTaskScheduleResponse>>(`/schedule/todo `, {
+  return useNuxtApp().$api<ApiResponse<UpsertTaskScheduleResponse>>(`/schedule/todo`, {
     method: 'POST',
     body: payload,
   })
@@ -98,6 +98,17 @@ export function deleteSchedule(payload: DeleteSchedulePayload) {
   })
 }
 
-export function getTaskScheduleCategories() {
-  return useNuxtApp().$api<PaginatedResponse<GroupOption>>(`/schedule/todo/categories `)
+export function getTaskScheduleCategories(userId?: string | number) {
+  return useNuxtApp().$api<PaginatedResponse<GroupOption>>(`/schedule/todo/categories`, {
+    query: {
+      userId,
+    },
+  })
+}
+
+export function patchDetailSchedule(scheduleId: string | number, payload: any) {
+  return useNuxtApp().$api<number>(`/schedule/${scheduleId}`, {
+    method: 'PATCH',
+    body: payload,
+  })
 }

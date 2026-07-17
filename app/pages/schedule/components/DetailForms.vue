@@ -10,6 +10,7 @@ const props = defineProps<{
   endTimestamp?: number
   calendars: EditCalendarItem[]
   event?: DetailPersonalScheduleEvent
+  simpleForm?: Partial<DetailPersonalScheduleEvent>
   setClose: () => void
 }>()
 defineEmits<{
@@ -25,18 +26,21 @@ const scheduleCd = ref(props.event?.scheduleCd || SCHEDULE_CODES.PERSONAL)
       v-if="scheduleCd === SCHEDULE_CODES.PERSONAL"
       v-model="scheduleCd" :event :calendars :start-timestamp :end-timestamp
       :set-close
+      :simple-form
       @close="$emit('close', $event)"
     />
     <MeetingForm
-      v-if="scheduleCd === SCHEDULE_CODES.MEETING"
+      v-else-if="scheduleCd === SCHEDULE_CODES.MEETING"
       v-model="scheduleCd" :event :calendars :start-timestamp :end-timestamp
       :set-close
+      :simple-form
       @close="$emit('close', $event)"
     />
     <TaskForm
-      v-if="scheduleCd === SCHEDULE_CODES.TODO"
+      v-else
       v-model="scheduleCd" :event :calendars :start-timestamp :end-timestamp
       :set-close
+      :simple-form
       @close="$emit('close', $event)"
     />
   </div>

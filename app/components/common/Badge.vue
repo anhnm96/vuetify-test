@@ -19,7 +19,7 @@ const getVariant = computed(() => {
     case 'warn':
       return 'orange'
     default:
-      return severity
+      return 'slate'
   }
 })
 </script>

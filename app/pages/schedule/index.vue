@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import type { Dayjs } from 'dayjs/esm'
-import type { ScheduleEvent, ScheduleEventWithCalendar, UpsertSimpleSchedulePayload } from '~/types/schedule'
+import type { ScheduleEvent, ScheduleEventWithCalendar } from '~/types/schedule'
 import dayjs from 'dayjs/esm'
+import duration from 'dayjs/esm/plugin/duration'
+import relativeTime from 'dayjs/esm/plugin/relativeTime'
 import weekday from 'dayjs/esm/plugin/weekday'
-// import Tab from '~/components/common/tab/Tab.vue'
-// import TabIndicator from '~/components/common/tab/TabIndicator.vue'
-// import TabList from '~/components/common/tab/TabList.vue'
-// import Tabs from '~/components/common/tab/Tabs.vue'
+import Tab from '~/components/common/tab/Tab.vue'
+import TabIndicator from '~/components/common/tab/TabIndicator.vue'
+import TabList from '~/components/common/tab/TabList.vue'
+import Tabs from '~/components/common/tab/Tabs.vue'
+import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP } from '~/constants/schedule'
+import { getScheduleList, patchDetailSchedule } from '~/services/schedule'
 import CreateScheduleDialog from './components/CreateScheduleDialog.vue'
+import RepeatMannerConfirmDialog from './components/RepeatMannerConfirmDialog.vue'
 import Sidebar from './components/Sidebar.vue'
-import { getScheduleList, upsertSimpleSchedule } from '~/services/schedule'
 import 'dayjs/esm/locale/ja'
 
 dayjs.locale('ja')
 dayjs.extend(weekday)
+dayjs.extend(duration)
+dayjs.extend(relativeTime)
 
 useHead({
   title: 'スケジュール',
@@ -39,7 +45,6 @@ const viewMode = ref<ViewMode>(VIEW_MODE.WEEK)
 // The day the view is anchored to. Drives the visible date range.
 const selectedDay = ref<Dayjs>(dayjs())
 const calendar = useTemplateRef('calendar')
-const calendarValue = ref('')
 
 // Date range to fetch: the month containing the anchored day, padded by a week
 // on each side so overflow days shown in week/month views are covered too.
@@ -95,7 +100,6 @@ const activeDateLabel = computed(() => {
 
 function goToToday() {
   selectedDay.value = dayjs()
-  calendarValue.value = dayjs().format('YYYY-MM-DD')
 }
 
 function goToPrev() {
@@ -137,12 +141,29 @@ function updateEvents() {
     })
     .map((schedule) => {
       const allDay = schedule.alldayFlg === '1'
+      let iconUrl, iconTag
+      if (schedule.scheduleIconCd !== '00') {
+        let icon = icons.find(i => i.code === schedule.scheduleIconCd)
+        if (icon) {
+          iconUrl = icon.name
+          iconTag = 'Icon'
+        }
+        if (!icon) {
+          icon = coloredIcons.find(i => i.code === schedule.scheduleIconCd)
+          if (icon) {
+            iconUrl = `/img/schedule/${icon.name}.png`
+            iconTag = 'img'
+          }
+        }
+      }
       return {
         ...schedule,
         name: schedule.scheduleTitle,
         start: new Date(schedule.startDateString).getTime(),
         end: new Date(schedule.endDateString).getTime(),
         timed: !allDay,
+        iconUrl,
+        iconTag,
       }
     })
 }
@@ -151,7 +172,19 @@ function updateEvents() {
 watch(selectedCalendarIds, updateEvents, { deep: true })
 
 function getEventColor(event: any) {
-  return `#${event.calendarColor}`
+  return `transparent`
+}
+
+function getDuration(d1: string, d2: string, isAllday: boolean) {
+  const start = dayjs(d1)
+  const end = dayjs(d2)
+  const diff = dayjs.duration(end.diff(start))
+  if (isAllday) return diff.humanize()
+  let res = ''
+  if (diff.days() > 0) res += `${diff.days()}日`
+  if (diff.hours() > 0) res += `${diff.hours()}時間`
+  if (diff.minutes() > 0) res += `${diff.minutes()}分`
+  return res
 }
 // #region now line
 function nowY() {
@@ -177,51 +210,89 @@ function scrollToTime() {
   calendar.value?.scrollToTime(first)
 }
 // #endregion
-// drag
-const dragEvent = ref<ScheduleEventWithCalendar | null>(null)
-const dragTime = ref<number | null>(null)
-const createEvent = ref<ScheduleEventWithCalendar | null>(null)
-const createStart = ref<number | null>(null)
-const extendOriginal = ref<number | null>(null)
-// original start of the event being dragged, used to tell a real move from a click
-const dragOriginalStart = ref<number | null>(null)
-// set when a drag actually moved an event, so the trailing click:event is ignored
-const suppressClick = ref(false)
+// ─────────────────────────────────────────────────────────────
+// カレンダーのマウス操作 / Tương tác chuột trên lịch
+//
+// 3つのモードを少数の ref で表現する / Ba chế độ dùng chung vài ref:
+//   1. 移動   move   : 既存イベントをドラッグ / kéo event sẵn có
+//        → dragEvent / dragTime / dragOriginalStart
+//   2. 作成   create : 空き領域をドラッグ / kéo vùng trống
+//        → createEvent / createStart
+//   3. リサイズ resize: 下端ハンドルで終了時刻を伸縮 / kéo cạnh dưới đổi giờ kết thúc
+//        → createEvent(=既存) / createStart / extendOriginal
+//
+// :time と :day は粒度が違うだけ。granularity 引数で共通化する。
+// :time và :day chỉ khác độ chi tiết → gom chung qua tham số granularity.
+// ─────────────────────────────────────────────────────────────
+type Granularity = 'time' | 'day'
 
-function startDrag(nativeEvent: Event, { event, timed }: any) {
-  // new interaction: clear any stale click-suppression from a previous drag
-  suppressClick.value = false
-  if (event && timed) {
-    dragEvent.value = event
-    dragTime.value = null
-    dragOriginalStart.value = event.start
-    extendOriginal.value = null
-  }
+const dragEvent = ref<ScheduleEventWithCalendar | null>(null)
+const dragTime = ref<number | null>(null) // 掴んだ位置のオフセット(mouse - start) / offset khi nắm
+const dragOriginalStart = ref<number | null>(null) // 実移動かクリックかの判定 / phân biệt kéo vs click
+const createEvent = ref<ScheduleEventWithCalendar | null>(null)
+const createStart = ref<number | null>(null) // ドラッグ選択の起点 / mốc bắt đầu kéo
+const extendOriginal = ref<number | null>(null) // リサイズ取消時に戻す終了時刻 / end để hoàn tác resize
+// ドラッグで実移動した直後の click:event を無視する / bỏ qua click ngay sau khi kéo
+const suppressClick = ref(false)
+// mousedown が既存イベント上か（終日イベントのクリックで作成が走るのを防ぐ）/ chặn tạo mới khi click event cả ngày
+const pointerDownOnEvent = ref(false)
+
+const defaultCalendarColor = () => scheduleListRes.value?.editCalendarList?.[0]?.calendarColor || '000000'
+
+// 粒度に応じたスナップ：時間は15分グリッド、日はそのまま / snap: time theo lưới 15', day giữ nguyên
+function snap(ts: number, granularity: Granularity, down = true) {
+  return granularity === 'time' ? roundTime(ts, down) : ts
 }
 
-async function startTime(nativeEvent: Event, tms: any) {
-  console.log('startTime', tms)
+// mousedown:event — 既存イベントを掴む（編集可なら timed / 終日どちらも移動可）/ nắm event (sửa được thì cả timed lẫn cả ngày đều kéo)
+function startDrag(nativeEvent: Event, { event }: any) {
+  if (!event.editable) {
+    nativeEvent.preventDefault()
+    nativeEvent.stopPropagation()
+    return
+  }
+
+  // 新しい操作の開始：前回のクリック抑止をリセット / bắt đầu thao tác mới: reset cờ chặn click
+  suppressClick.value = false
+  pointerDownOnEvent.value = !!event
+  // timed で限定しない：終日イベントも :day ハンドラで移動できるようにする
+  // Không giới hạn theo timed: event cả ngày cũng kéo được qua handler :day
+  dragEvent.value = event
+  dragTime.value = null
+  dragOriginalStart.value = event.start
+  extendOriginal.value = null
+}
+
+// mousedown:time / :day — 移動の掴み確定、または新規作成の開始 / xác nhận nắm, hoặc bắt đầu tạo mới
+function startInteraction(tms: any, granularity: Granularity) {
   const mouse = toTime(tms)
 
+  // 既存イベントを掴み中 → オフセットを記録し移動待ち / đang nắm event → lưu offset, chờ di chuyển
   if (dragEvent.value && dragTime.value === null) {
-    const start = dragEvent.value.start
-    dragTime.value = mouse - start
-  } else {
-    // create event
-    createStart.value = roundTime(mouse)
-    createEvent.value = {
-      name: `無題の予定`,
-      start: createStart.value,
-      end: createStart.value,
-      timed: true,
-      calendarColor: scheduleListRes.value?.editCalendarList?.[0]?.calendarColor || '000000',
-    } as ScheduleEventWithCalendar
-    events.value.push(createEvent.value)
+    dragTime.value = mouse - dragEvent.value.start
+    return
   }
+
+  // 既存イベント上の mousedown では作成しない（クリックは詳細表示に委ねる）
+  // mousedown trên event sẵn có thì không tạo mới (nhường click cho dialog chi tiết)
+  if (pointerDownOnEvent.value) return
+
+  // 空き領域 → 新規イベント作成を開始（:day は終日）/ vùng trống → tạo mới (:day là cả ngày)
+  const start = snap(mouse, granularity)
+  createStart.value = start
+  createEvent.value = {
+    name: `無題の予定`,
+    start,
+    end: start,
+    timed: granularity === 'time',
+    calendarColor: defaultCalendarColor(),
+  } as ScheduleEventWithCalendar
+  events.value.push(createEvent.value)
 }
 
+// click:event — ドラッグ移動の直後でなければ詳細/編集ダイアログを開く / mở dialog nếu không phải ngay sau khi kéo
 async function onClickEvent(event: Event, data: any) {
-  // this click is the tail of a drag that moved the event — ignore it
+  // ドラッグ移動に続くクリックは無視 / bỏ qua click nối tiếp ngay sau khi kéo
   if (suppressClick.value) {
     suppressClick.value = false
     return
@@ -237,40 +308,54 @@ async function onClickEvent(event: Event, data: any) {
   if (res) refreshScheduleList()
 }
 
-function extendBottom(event: ScheduleEventWithCalendar) {
+// 下端ハンドル mousedown — 終了時刻のリサイズを開始（既存イベントを createEvent として扱う）
+// mousedown ở cạnh dưới — bắt đầu resize giờ kết thúc (dùng event sẵn có làm createEvent)
+function extendBottom(nativeEvent: MouseEvent, event: ScheduleEventWithCalendar) {
+  nativeEvent.preventDefault()
+  nativeEvent.stopPropagation()
+  nativeEvent.stopImmediatePropagation()
   createEvent.value = event
   createStart.value = event.start
   extendOriginal.value = event.end
 }
 
-function mouseMove(nativeEvent: Event, tms: any) {
+// mousemove:time / :day — 移動、または作成/リサイズの範囲更新 / di chuyển, hoặc cập nhật vùng tạo/resize
+function moveInteraction(tms: any, granularity: Granularity) {
   const mouse = toTime(tms)
 
   if (dragEvent.value && dragTime.value !== null) {
+    // 既存イベントを移動（長さは保持）/ di chuyển event, giữ nguyên độ dài
     suppressClick.value = true
-    const start = dragEvent.value.start
-    const end = dragEvent.value.end
-    const duration = end - start
-    const newStartTime = mouse - dragTime.value
-    const newStart = roundTime(newStartTime)
-    const newEnd = newStart + duration
-
-    console.log('mousemove')
+    const duration = dragEvent.value.end - dragEvent.value.start
+    const newStart = snap(mouse - dragTime.value, granularity)
     dragEvent.value.start = newStart
-    dragEvent.value.end = newEnd
+    dragEvent.value.end = newStart + duration
   } else if (createEvent.value && createStart.value !== null) {
-    const mouseRounded = roundTime(mouse, false)
-    const min = Math.min(mouseRounded, createStart.value)
-    const max = Math.max(mouseRounded, createStart.value)
-
-    createEvent.value.start = min
-    createEvent.value.end = max
+    // 起点と現在位置で範囲を決める / xác định vùng theo mốc & vị trí hiện tại
+    const edge = snap(mouse, granularity, false)
+    createEvent.value.start = Math.min(edge, createStart.value)
+    createEvent.value.end = Math.max(edge, createStart.value)
   }
 }
 
-async function endDrag(nativeEvent: Event) {
-  console.log('endDrag')
+// テンプレート用バインダ（粒度を固定）/ binder cho template (cố định granularity)
+const startTime = (_e: Event, tms: any) => startInteraction(tms, 'time')
+const startDay = (_e: Event, tms: any) => startInteraction(tms, 'day')
+const mouseMove = (_e: Event, tms: any) => moveInteraction(tms, 'time')
+const mouseMoveDay = (_e: Event, tms: any) => moveInteraction(tms, 'day')
 
+// mouseup:time / :day — 作成なら登録ダイアログ、移動なら保存 / tạo → dialog đăng ký, di chuyển → lưu
+async function endDrag(nativeEvent: Event) {
+  // リサイズ操作（下端ハンドル）：作成ダイアログを開かず、変更を保存し、後続の click:event も抑止する
+  // Thao tác resize (handle cạnh dưới): không mở dialog tạo mới, lưu thay đổi, và chặn click:event theo sau
+  if (createEvent.value && extendOriginal.value) {
+    suppressClick.value = true
+    // 終了時刻が実際に変わった場合のみ保存（ハンドルの単なるクリックでは保存しない）
+    // Chỉ lưu khi giờ kết thúc thực sự thay đổi (click thuần vào handle thì không lưu)
+    if (createEvent.value.end !== extendOriginal.value) saveDraggedEvent(createEvent.value)
+    resetInteraction()
+    return
+  }
   if (createEvent.value) {
     const res = await dialogStore.showDialog({
       component: markRaw(CreateScheduleDialog),
@@ -278,75 +363,85 @@ async function endDrag(nativeEvent: Event) {
         startTimestamp: createEvent.value.start,
         endTimestamp: createEvent.value.end,
         calendars: scheduleListRes.value?.editCalendarList || [],
+        // 終日エリアで作成した場合は終日フラグを立てる / bật cờ all-day nếu tạo ở vùng all-day
+        alldayFlg: createEvent.value.timed === false ? '1' : '0',
       },
     })
     if (res) {
-      // event was created successfully, refresh the list
+      // 作成成功 → 一覧を再取得 / tạo thành công → tải lại danh sách
       refreshScheduleList()
     } else {
-      // create event was canceled, remove it from the list
+      // 取消 → 仮イベントを一覧から除去 / hủy → gỡ event tạm khỏi danh sách
       events.value = events.value.filter(e => !!e.scheduleId)
     }
   }
   if (dragEvent.value) {
-    // a real drag moved the event to a different time; a click leaves it unchanged
+    // 実際に移動した場合のみ保存（クリックは無変更）/ chỉ lưu khi thực sự di chuyển
     const moved = dragOriginalStart.value !== null && dragEvent.value.start !== dragOriginalStart.value
     if (moved) {
       saveDraggedEvent(dragEvent.value)
     }
   }
+  resetInteraction()
+}
+
+// すべての操作 ref を初期化 / reset toàn bộ ref thao tác
+function resetInteraction() {
   dragTime.value = null
   dragEvent.value = null
   dragOriginalStart.value = null
   createEvent.value = null
   createStart.value = null
   extendOriginal.value = null
+  pointerDownOnEvent.value = false
 }
 
 async function saveDraggedEvent(event: any) {
-  const payload: UpsertSimpleSchedulePayload = {
-    scheduleId: event.scheduleId,
-    scheduleTitle: event.scheduleTitle,
-    calendarId: event.calendarId,
-    alldayFlg: event.alldayFlg,
-    scheduleLocation: event.scheduleLocation ?? '',
-    scheduleIconCd: event.scheduleIconCd ?? '00',
+  const payload: any = {
     start: formatDateTime(event.start, DATE_TIME_FORMAT),
     end: formatDateTime(event.end, DATE_TIME_FORMAT),
   }
+  if (event.repeatId) {
+    const editManner = await dialogStore.showDialog({ component: markRaw(RepeatMannerConfirmDialog) })
+    if (!editManner) {
+      event.start = new Date(event.startDateString).getTime()
+      event.end = new Date(event.endDateString).getTime()
+      return
+    }
+    payload.repeat = { editManner }
+  }
   let id: number | string | undefined
   try {
-    id = toast.instance.loading('更新中...', { duration: 3000 })
-    await upsertSimpleSchedule(payload)
+    id = toast.instance.loading('更新中...', { duration: Infinity })
+    await patchDetailSchedule(event.scheduleId, payload)
+    // await upsertSimpleSchedule(payload)
     toast.instance.dismiss(id)
-    toast.show({ title: '予定を更新しました。' })
+    toast.show({ title: '予定を更新しました。', severity: 'success' })
+    // resync with the server
+    refreshScheduleList()
   } catch (err) {
-    toast.show({ title: '予定更新に失敗しました。' })
+    toast.show({ title: getErrorMessage(err, '予定更新に失敗しました。'), severity: 'error' })
+    event.start = new Date(event.startDateString).getTime()
+    event.end = new Date(event.endDateString).getTime()
     console.error(err)
   } finally {
     toast.instance.dismiss(id)
-    // resync with the server
-    refreshScheduleList()
   }
 }
 
+// mouseleave — 進行中の操作を取り消す / hủy thao tác đang diễn ra
 function cancelDrag() {
-  console.log('cancelDrag')
   if (createEvent.value) {
     if (extendOriginal.value) {
+      // リサイズ中断：終了時刻を元に戻す / hoàn tác resize: khôi phục giờ kết thúc
       createEvent.value.end = extendOriginal.value
     } else {
+      // 作成中断：仮イベントを一覧から除去 / hủy tạo: gỡ event tạm khỏi danh sách
       const i = events.value.indexOf(createEvent.value)
-      if (i !== -1) {
-        events.value.splice(i, 1)
-      }
+      if (i !== -1) events.value.splice(i, 1)
     }
   }
-
-  createEvent.value = null
-  createStart.value = null
-  dragTime.value = null
-  dragEvent.value = null
+  resetInteraction()
 }
 
 function roundTime(time: number, down = true) {
@@ -364,10 +459,11 @@ function toTime(tms: any) {
 </script>
 
 <template>
-  <div class="grid w-full grid-cols-[auto_1fr] overflow-auto text-default">
+  <div class="grid h-screen w-full grid-cols-[auto_1fr] overflow-auto text-default">
     <!-- Sidebar -->
     <Sidebar
       v-model:open="openSidebar"
+      v-model="selectedDay"
       v-model:selected="selectedCalendarIds"
       :own-calendar-list="scheduleListRes?.ownCalendarList || []"
       :other-calendar-list="scheduleListRes?.otherCalendarList || []"
@@ -424,7 +520,7 @@ function toTime(tms: any) {
           <InnerLoading v-if="isScheduleListLoading" />
           <v-calendar
             ref="calendar"
-            v-model="calendarValue"
+            :model-value="selectedDay.toDate()"
             class="schedule"
             :event-color="getEventColor"
             event-overlap-mode="column"
@@ -443,19 +539,119 @@ function toTime(tms: any) {
             }"
             @mousedown:event="startDrag"
             @mousedown:time="startTime"
+            @mousedown:day="startDay"
             @mouseleave="cancelDrag"
             @mousemove:time="mouseMove"
+            @mousemove:day="mouseMoveDay"
             @mouseup:time="endDrag"
+            @mouseup:day="endDrag"
             @click:event="onClickEvent"
           >
-            <template #event="{ event, timed, eventSummary }">
-              <div class="v-event-draggable">
-                <component :is="eventSummary" />
+            <template #event="{ event, timed, start, singline }">
+              <div class="v-event-draggable event-block" :style="{ '--event-color': `#${event.calendarColor}` }">
+                <span v-if="start && timed" class="v-event-summary">
+                  <img v-if="event.iconTag === 'img'" :src="event.iconUrl" class="mr-0.5 inline size-3">
+                  <Icon v-if="event.iconTag === 'Icon'" :name="event.iconUrl" size="16" class="mr-0.5 translate-y-0.5" />
+                  <strong>{{ event.name }}</strong>
+                  <template v-if="singline">, </template>
+                  <br v-else>
+                  {{ formatDateTime(event.start, 'H:mm') }} ～ {{ formatDateTime(event.end, 'H:mm') }}
+                </span>
+                <span v-else class="v-event-summary">{{ event.name }}</span>
+                <Tooltip
+                  v-if="event.scheduleId"
+                  placement="right"
+                  class="min-w-60"
+                  :style="{ '--event-color': `#${event.calendarColor}`, 'maxWidth': 'min(360px, calc(100vw - 2rem))' }"
+                >
+                  <!-- header -->
+                  <div class="flex gap-2">
+                    <span class="h-8 w-1 rounded-full bg-(--event-color)" />
+                    <div class="flex flex-col">
+                      <span class="text-truncate text-base leading-tight font-semibold">{{ event.name }}</span>
+                      <span class="text-xs leading-tight font-medium text-muted">{{ SCHEDULE_CODE_LABEL_MAP[event.scheduleCd] }}</span>
+                    </div>
+                  </div>
+                  <!-- body -->
+                  <div class="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto">
+                    <!-- time -->
+                    <div v-if="event.alldayFlg === '0' && dayjs(event.start).isSame(dayjs(event.end), 'day')" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-clock-time-seven-outline
+                      </v-icon>
+                      <span>{{ formatDateTime(event.startDateString, 'HH:mm') }} ～ {{ formatDateTime(event.endDateString, 'HH:mm') }}</span>
+                    </div>
+                    <!-- date -->
+                    <div class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-calendar-blank-outline
+                      </v-icon>
+                      <span v-if="dayjs(event.start).isSame(dayjs(event.end), 'day')">{{ dayjs(event.startDateString).format('M月D日（dd）') }}</span>
+                      <span v-else>
+                        <template v-if="event.alldayFlg === '1'">{{ dayjs(event.startDateString).format('M月D日（dd）') }} ～ {{ dayjs(event.endDateString).format('M月D日（dd）') }}</template>
+                        <template v-else>{{ dayjs(event.startDateString).format('M月D日（dd）HH:mm') }} ～<br>{{ dayjs(event.endDateString).format('M月D日（dd）HH:mm') }}</template>
+                      </span>
+                    </div>
+                    <!-- duration -->
+                    <div class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-alarm
+                      </v-icon>
+                      <span>{{ getDuration(event.startDate, event.endDate, event.alldayFlg === '1') }}</span>
+                    </div>
+                    <!-- calendar name -->
+                    <div class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-calendar-account-outline
+                      </v-icon>
+                      <span>{{ event.calendarName }}</span>
+                    </div>
+                    <!-- invitees -->
+                    <div v-if="event.memberNames" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-account-group-outline
+                      </v-icon>
+                      <span>{{ event.memberNames }}</span>
+                    </div>
+                    <!-- location -->
+                    <div v-if="event.scheduleLocation" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-map-marker-outline
+                      </v-icon>
+                      <span>{{ event.scheduleLocation }}</span>
+                    </div>
+                    <!-- url link -->
+                    <div v-if="event.urlLink" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-link
+                      </v-icon>
+                      <a
+                        :href="event.urlLink"
+                        target="_blank" rel="noopener noreferrer"
+                        class="text-primary-500 hover:underline"
+                      >{{ event.urlLink }}</a>
+                    </div>
+                    <!-- details -->
+                    <div v-if="event.details" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-information-outline
+                      </v-icon>
+                      <span>{{ event.details }}</span>
+                    </div>
+                    <!-- register -->
+                    <div v-if="event.createUserName" class="flex items-start gap-2 leading-tight">
+                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
+                        mdi-account-edit-outline
+                      </v-icon>
+                      <span>{{ event.createUserName }}</span>
+                    </div>
+                  </div>
+                </Tooltip>
               </div>
               <div
-                v-if="timed"
+                v-if="timed && event.editable !== false"
                 class="v-event-drag-bottom"
-                @mousedown.stop="extendBottom(event as any)"
+                @mousedown="extendBottom($event, event as any)"
               />
             </template>
             <template #day-body="{ date }">
@@ -514,16 +710,17 @@ function toTime(tms: any) {
   padding-left: 6px;
 }
 
-.v-event-timed {
+:deep(.v-event-timed) {
   user-select: none;
   -webkit-user-select: none;
+  border: none;
 }
 
 .v-event-drag-bottom {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 4px;
+  bottom: 0;
   height: 4px;
   cursor: ns-resize;
 
@@ -543,5 +740,18 @@ function toTime(tms: any) {
   &:hover::after {
     display: block;
   }
+}
+
+.event-block {
+  @apply rounded-md bg-(--event-color)/20 hover:bg-(--event-color)/25 border-l-4 border-(--event-color) text-(--event-color) h-full transition-colors;
+  color: color-mix(in srgb, var(--event-color) 100%, black 30%);
+}
+
+.dark .event-block {
+  color: color-mix(in srgb, var(--event-color) 100%, white 30%);
+}
+
+:deep(.v-event-more) {
+  @apply bg-transparent text-primary-500 hover:underline;
 }
 </style>

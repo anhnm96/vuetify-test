@@ -1,0 +1,51 @@
+/* dialog overlay */
+.overlay-enter-from,
+.overlay-leave-to {
+  @apply opacity-0;
+}
+
+.overlay-enter-active {
+  @apply transition-opacity duration-300 ease-out;
+}
+
+.overlay-leave-active {
+  @apply transition-opacity duration-200 ease-in;
+}
+
+/* dialog content */
+.content-enter-from,
+.content-leave-to {
+  @apply opacity-0 translate-y-4 sm:translate-y-0 sm:scale-90;
+}
+
+.content-enter-active {
+  @apply ease-out duration-300;
+}
+
+.content-enter-to,
+.content-leave-from {
+  @apply opacity-100 translate-y-0 sm:scale-100;
+}
+
+.content-leave-active {
+  @apply ease-in duration-200;
+}
+
+/* #region popover */
+.popover-enter-from,
+.popover-leave-to {
+  @apply opacity-0 scale-75;
+}
+
+.popover-enter-to,
+.popover-leave-from {
+  @apply opacity-100 scale-100;
+}
+
+.popover-enter-active,
+.popover-leave-active {
+  transform-origin: var(--trigger-origin);
+  @apply transition-[opacity_transform] duration-200;
+}
+
+/* #endregion popover */

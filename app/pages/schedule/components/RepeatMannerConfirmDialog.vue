@@ -1,9 +1,9 @@
-<script lang="ts">
+<script setup lang="ts">
 import Dialog from '~/components/common/dialog/Dialog.vue'
 import DialogDescription from '~/components/common/dialog/DialogDescription.vue'
-</script>
 
-<script setup lang="ts">
+withDefaults(defineProps<{ type?: string }>(), { type: '変更' })
+
 defineEmits<{
   close: [value?: string]
   afterLeave: []
@@ -33,7 +33,7 @@ defineEmits<{
         <!-- description -->
         <div class="max-h-[40vh] overflow-auto px-4 outline-offset-2 sm:px-6">
           <DialogDescription class="text-sm break-all whitespace-pre-line">
-            <p>繰り返しの予定を削除します。削除方法を選択してください。</p>
+            <p>{{ `繰り返しの予定を${type}します。${type}方法を選択してください。` }}</p>
             <div class="mt-4 flex flex-col gap-4">
               <button class="btn btn-outline-primary" @click="setClose();$emit('close', '1')">
                 この予定のみ変更

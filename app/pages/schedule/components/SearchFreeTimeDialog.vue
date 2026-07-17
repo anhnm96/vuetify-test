@@ -9,8 +9,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  afterLeave: []
   close: [value?: SearchTimeResponse]
+  afterLeave: []
 }>()
 
 const form = reactive({ searchDate: props.startDate, searchTime: props.startTime, alldayOut: false })

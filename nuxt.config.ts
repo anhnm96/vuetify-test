@@ -1,4 +1,9 @@
 import type { NuxtPage } from 'nuxt/schema'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -63,14 +68,15 @@ export default defineNuxtConfig({
   },
 
   css: [
-    'assets/styles/layers.css',
-    'vuetify/styles',
-    'assets/styles/tailwind.css',
+    '~/assets/styles/tailwind.css',
+    '~/assets/styles/layers.css',
+    // 'vuetify/styles',
   ],
 
   vuetify: {
     moduleOptions: {
-      styles: { configFile: 'assets/styles/settings.scss' },
+      disableVuetifyStyles: true,
+      styles: { configFile: resolve(__dirname, 'app/assets/styles/settings.scss') },
     },
     vuetifyOptions: {
       theme: {

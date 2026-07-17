@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { DetailPersonalScheduleEvent, EditCalendarItem, MeetingFormValues, UpsertMeetingSchedulePayload } from '@/types/schedule'
+import type { DetailPersonalScheduleEvent, EditCalendarItem, UpsertMeetingSchedulePayload } from '@/types/schedule'
 import dayjs from 'dayjs/esm'
-import QuickPickDialog from '~/components/common/QuickPickDialog.vue'
+import { omit } from 'lodash-es'
 import UserSelectModal from '~/components/common/UserSelectModal.vue'
-import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP, SCHEDULE_TYPE_LIST, textColors } from '~/constants/schedule'
-import { getEquipmentList, getEventDetail, getInviteeList, upsertMeetingSchedule } from '~/services/schedule'
+import { ATTENDANCE_CODE_LABEL_MAP, coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP, SCHEDULE_TYPE_LIST, textColors } from '~/constants/schedule'
+import { deleteSchedule, getEquipmentList, getEventDetail, getInviteeList, replyMeetingAttendance, upsertMeetingSchedule } from '~/services/schedule'
+import AttendanceReplyDialog from './AttendanceReplyDialog.vue'
 import ReplyListDialog from './ReplyListDialog.vue'
 import SearchFreeTimeDialog from './SearchFreeTimeDialog.vue'
 
@@ -13,6 +14,7 @@ const props = defineProps<{
   endTimestamp?: number
   calendars: EditCalendarItem[]
   event?: DetailPersonalScheduleEvent
+  simpleForm?: Partial<DetailPersonalScheduleEvent>
   setClose: () => void
 }>()
 const emit = defineEmits<{
@@ -23,12 +25,15 @@ const scheduleCd = defineModel<number>()
 const isEditMode = !!props.event
 const toast = useToast()
 const dialogStore = useDialogStore()
+const scheduleTypeOptions = computed(() => {
+  return SCHEDULE_TYPE_LIST
+})
 
 const formId = useId()
 const formRef = useTemplateRef('formRef')
-const startDate = formatDateTime(props.startTimestamp)
-const endDate = props.endTimestamp ? formatDateTime(props.endTimestamp) : startDate
-const endTime = props.startTimestamp !== props.endTimestamp ? dayjs(props.endTimestamp).format('HH:mm') : dayjs(props.startTimestamp).add(30, 'minute').format('HH:mm')
+const startDate = props.simpleForm?.startDate ?? formatDateTime(props.startTimestamp)
+const endDate = props.simpleForm?.endDate ?? (props.endTimestamp ? formatDateTime(props.endTimestamp) : startDate)
+const endTime = props.simpleForm?.endTime ?? (props.startTimestamp !== props.endTimestamp ? dayjs(props.endTimestamp).format('HHmm') : dayjs(props.startTimestamp).add(30, 'minute').format('HHmm'))
 const currentUserId = ref<number>()
 
 const scheduleSchema = {
@@ -37,76 +42,19 @@ const scheduleSchema = {
   startTime: 'required',
   endDate: 'required',
   endTime: 'required',
+  urlLink: 'optional_url',
 }
 
-/** Map a fetched event onto the form model. Shared by the initial values (edit
- * mode) and the detail refetch so the event→form mapping lives in one place. */
-function eventToFormValues(event: DetailPersonalScheduleEvent): MeetingFormValues {
-  const [startDate, startTimeRaw] = event.startDateString.split(' ') as [string, string]
-  const [endDate, endTimeRaw] = event.endDateString.split(' ') as [string, string]
-  return {
-    scheduleCd: event.scheduleCd,
-    scheduleTitle: event.scheduleTitle,
-    alldayFlg: event.alldayFlg,
-    startDate,
-    // hh:mm:ss -> hhmm
-    startTime: startTimeRaw.replace(':', '').slice(0, 4),
-    endDate,
-    endTime: endTimeRaw.replace(':', '').slice(0, 4),
-    scheduleLocation: event.scheduleLocation,
-    details: event.details,
-    urlLink: event.urlLink ?? undefined,
-    scheduleIconCd: event.scheduleIconCd,
-    scheduleColor: event.scheduleColor ?? '000000',
-    scheduleId: event.scheduleId,
-    notificationCd1: event.notificationCd1 ?? '01',
-    notificationTime1: event.notificationTime1 ?? 0,
-    notificationTimeUnit1: event.notificationTimeUnit1 ?? 1,
-    notificationCd2: event.notificationCd2 ?? '01',
-    notificationTime2: event.notificationTime2 ?? 0,
-    notificationTimeUnit2: event.notificationTimeUnit2 ?? 1,
-    editable: event.editable,
-    equipments: event.meeting?.equipment ?? [],
-    invitees: event.meeting?.invitees ?? [],
-    attendanceCd: event.meeting?.attendanceCd,
-    attendanceName: event.meeting?.attendanceName,
-    ownerUserId: event.meeting?.ownerUserId,
-  }
-}
-
-/** Map the form model to the API payload. The single typed boundary between the
- * form and `upsertMeetingSchedule` — no `omit`, no cast. */
-function meetingFormToPayload(v: MeetingFormValues): UpsertMeetingSchedulePayload {
-  return {
-    scheduleId: v.scheduleId,
-    scheduleTitle: v.scheduleTitle,
-    start: `${v.startDate} ${v.startTime.slice(0, 2)}:${v.startTime.slice(2)}`,
-    end: `${v.endDate} ${v.endTime.slice(0, 2)}:${v.endTime.slice(2)}`,
-    scheduleLocation: v.scheduleLocation,
-    details: v.details,
-    urlLink: v.urlLink,
-    equipmentIds: v.equipments?.map(e => e.userId),
-    inviteeUserIds: (v.invitees ?? []).map(e => e.userId),
-    scheduleIconCd: v.scheduleIconCd,
-    scheduleColor: v.scheduleColor,
-    notificationCd1: v.notificationCd1,
-    notificationTime1: v.notificationTime1,
-    notificationTimeUnit1: v.notificationTimeUnit1,
-    notificationCd2: v.notificationCd2,
-    notificationTime2: v.notificationTime2,
-    notificationTimeUnit2: v.notificationTimeUnit2,
-  }
-}
-
-const initialValues = reactive<MeetingFormValues>({
-  scheduleTitle: '無題の予定',
+const initialValues = reactive({
+  scheduleTitle: props.simpleForm?.scheduleTitle ?? '無題の予定',
   equipments: [],
   invitees: [],
   startDate,
-  startTime: dayjs(props.startTimestamp).format('HH:mm'),
+  startTime: props.simpleForm?.startTime ?? dayjs(props.startTimestamp).format('HHmm'),
   endDate,
   endTime,
-  scheduleIconCd: '00',
+  scheduleLocation: props.simpleForm?.scheduleLocation,
+  scheduleIconCd: props.simpleForm?.scheduleIconCd ?? '00',
   scheduleColor: '000000',
   notificationCd1: '01',
   notificationTime1: 0,
@@ -116,17 +64,75 @@ const initialValues = reactive<MeetingFormValues>({
   notificationTimeUnit2: 1,
 })
 if (props.event) {
-  Object.assign(initialValues, eventToFormValues(props.event))
+  let [startDate, startTime] = props.event.startDateString.split(' ') as [string, string]
+  let [endDate, endTime] = props.event.endDateString.split(' ') as [string, string]
+  // hh:mm:ss -> hhmm
+  startTime = startTime.replace(':', '').slice(0, 4)
+  endTime = endTime.replace(':', '').slice(0, 4)
+
+  Object.assign(initialValues, {
+    scheduleCd: props.event.scheduleCd,
+    scheduleTitle: props.event.scheduleTitle,
+    alldayFlg: props.event.alldayFlg,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    scheduleLocation: props.event.scheduleLocation,
+    details: props.event.details,
+    urlLink: props.event.urlLink,
+    scheduleIconCd: props.event.scheduleIconCd,
+    scheduleColor: props.event.scheduleColor ?? '000000',
+    scheduleId: props.event.scheduleId,
+    notificationCd1: props.event.notificationCd1 ?? '01',
+    notificationTime1: props.event.notificationTime1 ?? 0,
+    notificationTimeUnit1: props.event.notificationTimeUnit1 ?? 1,
+    notificationCd2: props.event.notificationCd2 ?? '01',
+    notificationTime2: props.event.notificationTime2 ?? 0,
+    notificationTimeUnit2: props.event.notificationTimeUnit2 ?? 1,
+  })
 }
 
-const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
+const { data: eventDetail, refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   `schedule/${props.event?.scheduleId}`,
   () => getEventDetail('meeting'),
-  { immediate: isEditMode, transform: (data) => {
+  { immediate: isEditMode, transform: (res) => {
     try {
+      const data = res
+      let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
+      let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
+      // hh:mm:ss -> hhmm
+      startTime = startTime.replace(':', '').slice(0, 4)
+      endTime = endTime.replace(':', '').slice(0, 4)
       formRef.value?.setValues({
         ...initialValues,
-        ...eventToFormValues(data),
+        ...{
+          scheduleTitle: data.scheduleTitle,
+          alldayFlg: data.alldayFlg,
+          startDate,
+          startTime,
+          endDate,
+          endTime,
+          scheduleLocation: data.scheduleLocation,
+          details: data.details,
+          urlLink: data.urlLink,
+          scheduleIconCd: data.scheduleIconCd,
+          scheduleColor: data.scheduleColor ?? '000000',
+          scheduleId: data.scheduleId,
+          notificationCd1: data.notificationCd1 ?? '01',
+          notificationTime1: data.notificationTime1 ?? 0,
+          notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
+          notificationCd2: data.notificationCd2 ?? '01',
+          notificationTime2: data.notificationTime2 ?? 0,
+          notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
+          editable: data.editable,
+          meeting: data.meeting,
+          attendanceCd: data.meeting?.attendanceCd,
+          attendanceName: data.meeting?.attendanceName,
+          equipments: data.meeting?.equipment,
+          invitees: data.meeting?.invitees,
+          ownerUserId: data.meeting?.ownerUserId,
+        },
       })
       return data
     } catch (err) {
@@ -135,6 +141,16 @@ const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
     }
   } },
 )
+
+const isEditable = computed(() => !isEditMode || (isEditMode && formRef.value?.values.editable))
+const scheduleIcon = computed(() => {
+  if (isEditable.value) return
+  return icons.find(i => i.code === formRef.value?.values.scheduleIconCd)
+})
+const scheduleColoredIcon = computed(() => {
+  if (isEditable.value) return
+  return coloredIcons.find(i => i.code === formRef.value?.values.scheduleIconCd)
+})
 
 const { data: equipmentList, pending: pendingGetEquipmentList, error: getEquipmentListError, refresh: fetchEquipmentList } = useAsyncData('equiment-list', () => getEquipmentList(), {
   transform: res => res.list,
@@ -149,9 +165,69 @@ const { data: groupList, pending: pendingGetGroupList, error: getGroupListError,
   },
 })
 
+async function duplicateMeeting() {
+  if (!formRef.value) return
+  const res = await formRef.value.validate()
+  if (!res.valid) return
+  const values = formRef.value.values
+  try {
+    // 複製なので既存の scheduleId は含めない（新規作成として扱う）
+    // Là bản sao nên không gửi scheduleId (xử lý như tạo mới)
+    const payload = omit(values, [
+      'scheduleId',
+      'startDate',
+      'startTime',
+      'endDate',
+      'endTime',
+      'editable',
+      'meeting',
+      'equipments',
+      'invitees',
+      'attendanceCd',
+      'attendanceName',
+      'ownerUserId',
+    ])
+
+    payload.start = `${values.startDate} ${values.startTime.slice(0, 2)}:${values.startTime.slice(2)}`
+    payload.end = `${values.endDate} ${values.endTime.slice(0, 2)}:${values.endTime.slice(2)}`
+    if (values.equipments) {
+      payload.equipmentIds = values.equipments.map((e: UserOption) => e.userId)
+    }
+    payload.inviteeUserIds = values.invitees.map((e: UserOption) => e.userId)
+    await upsertMeetingSchedule(payload as UpsertMeetingSchedulePayload)
+    emit('close', true)
+    props.setClose()
+    toast.show({ title: `予定を複製しました。`, severity: 'success' })
+  } catch (err: unknown) {
+    console.error(err)
+    toast.show({ title: getErrorMessage(err, '予定複製に失敗しました。'), severity: 'error' })
+  }
+}
+
 async function submitForm(values: any) {
   try {
-    await upsertMeetingSchedule(meetingFormToPayload(values))
+    // Process the validated form values
+    const payload = omit<UpsertMeetingSchedulePayload>(values, [
+      'startDate',
+      'startTime',
+      'endDate',
+      'endTime',
+      'editable',
+      'meeting',
+      'equipments',
+      'invitees',
+      'attendanceCd',
+      'attendanceName',
+      'ownerUserId',
+    ])
+
+    payload.start = `${values.startDate} ${values.startTime.slice(0, 2)}:${values.startTime.slice(2)}`
+    payload.end = `${values.endDate} ${values.endTime.slice(0, 2)}:${values.endTime.slice(2)}`
+    if (values.equipments) {
+      payload.equipmentIds = values.equipments.map((e: UserOption) => e.userId)
+    }
+    payload.inviteeUserIds = values.invitees.map((e: UserOption) => e.userId)
+    await upsertMeetingSchedule(payload as UpsertMeetingSchedulePayload)
     emit('close', true)
     props.setClose()
     toast.show({ title: `予定を${isEditMode ? '更新' : '登録'}しました。`, severity: 'success' })
@@ -179,36 +255,43 @@ function focusField(fieldName: string) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
+watch([() => formRef.value?.values.endDate, () => formRef.value?.values.endTime], ([newDate, newTime]) => {
+  if (!newDate || !newTime) return
+  const startDate = formRef.value?.values.startDate
+  const startTime = formRef.value?.values.startTime
+  if (!startDate || !startTime) return
+  // 終了日時が開始日時より前になったら開始日時を終了日時に合わせる
+  // Nếu ngày giờ kết thúc sớm hơn ngày giờ bắt đầu thì kéo bắt đầu về bằng kết thúc
+  const res = compareDates(`${newDate} ${newTime.slice(0, 2)}:${newTime.slice(2)}`, `${startDate} ${startTime.slice(0, 2)}:${startTime.slice(2)}`)
+  if (res === -1) {
+    // 開始日時を終了日時の30分前に設定する
+    // Đặt ngày giờ bắt đầu sớm hơn ngày giờ kết thúc mới 30 phút
+    const newStart = dayjs(`${newDate} ${newTime.slice(0, 2)}:${newTime.slice(2)}`).subtract(30, 'minute')
+    formRef.value?.setFieldValue('startDate', newStart.format('YYYY-MM-DD'))
+    formRef.value?.setFieldValue('startTime', newStart.format('HHmm'))
+  }
+})
+
+watch([() => formRef.value?.values.startDate, () => formRef.value?.values.startTime], ([newDate, newTime]) => {
+  if (!newDate || !newTime) return
+  const endDate = formRef.value?.values.endDate
+  const endTime = formRef.value?.values.endTime
+  if (!endDate || !endTime) return
+  // 開始日時が終了日時より後になったら終了日時を開始日時に合わせる
+  // Nếu ngày giờ bắt đầu muộn hơn ngày giờ kết thúc thì kéo kết thúc về bằng bắt đầu
+  const res = compareDates(`${newDate} ${newTime.slice(0, 2)}:${newTime.slice(2)}`, `${endDate} ${endTime.slice(0, 2)}:${endTime.slice(2)}`)
+  if (res === 1) {
+    // 終了日時を開始日時の30分後に設定する
+    // Đặt ngày giờ kết thúc muộn hơn ngày giờ bắt đầu mới 30 phút
+    const newEnd = dayjs(`${newDate} ${newTime.slice(0, 2)}:${newTime.slice(2)}`).add(30, 'minute')
+    formRef.value?.setFieldValue('endDate', newEnd.format('YYYY-MM-DD'))
+    formRef.value?.setFieldValue('endTime', newEnd.format('HHmm'))
+  }
+})
+
 const showEquipmentsSelectDialog = ref(false)
 async function onOpenSelectEquimentsDialog() {
   showEquipmentsSelectDialog.value = true
-}
-
-const items = [
-  { label: 'Option 1', value: 1 },
-  { label: 'Option 2', value: 2 },
-  { label: 'Option 3', value: 3 },
-  { label: 'Option 4', value: 4 },
-  { label: 'Option 5', value: 5 },
-  { label: 'Option 6', value: 6 },
-  { label: 'Option 7', value: 7 },
-  { label: 'Option 8', value: 8 },
-  { label: 'Option 9', value: 9 },
-  { label: 'Option 10', value: 10 },
-  { label: 'Option 11', value: 11 },
-  { label: 'Option 12', value: 12 },
-  { label: 'Option 13', value: 13 },
-]
-async function openQuickPickDialog() {
-  const res = await dialogStore.showDialog({
-    component: markRaw(QuickPickDialog),
-    props: {
-      items,
-      checkDisable: (item: any) => item.value === 3 || item.value === 4 || item.value === 5, // Example disable logic
-      initialItem: [items[0], items[1], items[2]], // Example initial selected items
-    },
-  })
-  console.log('🔍 ~ openQuickPickDialog ~ res:', res)
 }
 
 const showUsersSelectDialog = ref(false)
@@ -227,9 +310,9 @@ async function onOpenSelectTimeDialog() {
   })
   if (!res) return
   formRef.value?.setFieldValue('startDate', res.startDate)
-  formRef.value?.setFieldValue('startTime', `${res.startTime.slice(0, 2)}:${res.startTime.slice(2)}`)
+  formRef.value?.setFieldValue('startTime', res.startTime.replace(':', ''))
   formRef.value?.setFieldValue('endDate', res.endDate)
-  formRef.value?.setFieldValue('endTime', `${res.endTime.slice(0, 2)}:${res.endTime.slice(2)}`)
+  formRef.value?.setFieldValue('endTime', res.endTime.replace(':', ''))
 }
 
 function onOpenReplyList() {
@@ -239,6 +322,28 @@ function onOpenReplyList() {
       scheduleId: formRef.value!.values.scheduleId,
     },
   })
+}
+
+async function onOpenAttendanceReply() {
+  const res = await dialogStore.showDialog({
+    component: markRaw(AttendanceReplyDialog),
+    props: {
+      value: formRef.value!.values.meeting.attendanceCd,
+    },
+  })
+  if (!res) return
+  try {
+    await replyMeetingAttendance({
+      scheduleId: formRef.value?.values.scheduleId,
+      attendanceCd: res,
+    })
+    formRef.value?.setFieldValue('attendanceCd', res)
+    formRef.value?.setFieldValue('attendanceName', ATTENDANCE_CODE_LABEL_MAP[res])
+    toast.show({ title: `回答を保存しました。`, severity: 'success' })
+  } catch (err) {
+    console.error(err)
+    toast.show({ title: '回答の処理に失敗しました。', severity: 'error' })
+  }
 }
 
 const notificationSettings = [
@@ -251,6 +356,56 @@ const notificationUnits = [
   { label: '日前', value: 1440 },
   { label: '週間前', value: 10080 },
 ]
+const notificationText = computed(() => {
+  let text1 = ''
+  let text2 = ''
+  const values = formRef.value?.values
+  if (!values) return
+  if (values.notificationCd1 === '01') {
+    text1 = '通知しない'
+  } else {
+    const unit = notificationUnits.find(i => i.value === values.notificationTimeUnit1)
+    if (!unit) {
+      console.error('Could not find notificationTimeUnit1')
+      return
+    }
+    text1 = `${values.notificationTime1}${unit.label}にポップで通知する`
+  }
+
+  if (values.notificationCd2 === '01') {
+    text2 = '通知しない'
+  } else {
+    const unit = notificationUnits.find(i => i.value === values.notificationTimeUnit2)
+    if (!unit) {
+      console.error('Could not find notificationTimeUnit2')
+      return
+    }
+    text1 = `${values.notificationTime2}${unit.label}にポップで通知する`
+  }
+  return { text1, text2 }
+})
+
+const isDeleting = ref(false)
+async function onConfirmDelete() {
+  const res = await dialogStore.showConfirm({
+    title: '削除',
+    description: '削除します。よろしいですか？',
+    severity: 'error',
+  })
+  if (!res) return
+  try {
+    isDeleting.value = true
+    await deleteSchedule({ scheduleId: formRef.value!.values.scheduleId })
+    emit('close', true)
+    props.setClose()
+    toast.show({ title: `予定を削除しました。`, severity: 'success' })
+  } catch (err) {
+    console.error(err)
+    toast.show({ title: '予定削除に失敗しました。', severity: 'error' })
+  } finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -263,7 +418,7 @@ const notificationUnits = [
     @submit="submitForm"
     @invalid-submit="onInvalidSubmit"
   >
-    <InnerLoading v-if="fetchScheduleStatus === 'pending'" />
+    <InnerLoading v-if="fetchScheduleStatus === 'pending' || isDeleting" />
     <div v-else-if="fetchScheduleStatus === 'error'" class="absolute inset-0 z-10 grid place-items-center bg-abg/60 backdrop-blur-xs">
       <div class="flex flex-col items-center gap-2">
         <p>データの取得に失敗しました。</p>
@@ -294,7 +449,7 @@ const notificationUnits = [
         <Label :for="`scheduleCd__${formId}`">種類</Label>
         <div v-if="!isEditMode" class="flex flex-wrap gap-4">
           <Radio
-            v-for="option in SCHEDULE_TYPE_LIST"
+            v-for="option in scheduleTypeOptions"
             :key="option.value"
             v-model="scheduleCd" :value="option.value" :label="option.label"
           />
@@ -308,10 +463,12 @@ const notificationUnits = [
         <Label required :for="`scheduleTitle__${formId}`">タイトル</Label>
         <Field
           :id="`scheduleTitle__${formId}`"
+          v-focus
           class="inputtext"
           :class="[form.errors.scheduleTitle && 'invalid']"
           name="scheduleTitle"
           label="タイトル"
+          :disabled="!isEditable"
           @input="form.setFieldError('name', '')"
         />
         <TransitionHeight :show="!!form.errors.scheduleTitle">
@@ -321,7 +478,7 @@ const notificationUnits = [
       <!-- 設備 -->
       <div class="flex flex-col gap-1">
         <Label :for="`equipments__${formId}`">設備</Label>
-        <div class="flex gap-4">
+        <div v-if="isEditable" class="flex gap-4">
           <Button
             type="button" class="btn-outline"
             :loading="pendingGetEquipmentList"
@@ -330,9 +487,6 @@ const notificationUnits = [
           >
             設備を選択
           </Button>
-          <button type="button" @click="openQuickPickDialog">
-            Open quick pick
-          </button>
           <div v-if="getEquipmentListError" class="flex items-center gap-1">
             <p>データの取得に失敗しました。</p>
             <button
@@ -352,7 +506,7 @@ const notificationUnits = [
       <!-- 招待するユーザ -->
       <div class="flex flex-col gap-1">
         <Label :for="`userIds__${formId}`">招待するユーザー</Label>
-        <div class="flex gap-4">
+        <div v-if="isEditable" class="flex gap-4">
           <Button
             type="button" class="btn-outline"
             :loading="pendingGetGroupList"
@@ -395,6 +549,7 @@ const notificationUnits = [
                 input-format="yyyy-mm-dd"
                 class="custom-input h-9.5 w-46"
                 label="" prepend-icon="" variant="outlined"
+                :disabled="!isEditable"
                 @update:model-value="($event) => handleChange(formatDateTime($event), false)"
               />
             </Field>
@@ -412,6 +567,7 @@ const notificationUnits = [
               <TimePicker
                 :model-value="value" :class="[form.errors.startTime && 'invalid']"
                 :minute-step="15"
+                :disabled="!isEditable"
                 @update:model-value="handleChange($event, false)"
               />
             </Field>
@@ -433,6 +589,7 @@ const notificationUnits = [
                 hide-details autocomplete="off" input-format="yyyy-mm-dd"
                 class="custom-input h-9.5 w-46"
                 label="" prepend-icon="" variant="outlined"
+                :disabled="!isEditable"
                 @update:model-value="($event) => handleChange(formatDateTime($event), false)"
               />
             </Field>
@@ -450,6 +607,7 @@ const notificationUnits = [
               <TimePicker
                 :model-value="value" :class="[form.errors.endTime && 'invalid']"
                 :minute-step="15"
+                :disabled="!isEditable"
                 @update:model-value="handleChange($event, false)"
               />
             </Field>
@@ -461,6 +619,7 @@ const notificationUnits = [
         <div class="mt-1 flex items-center gap-4">
           <!-- 設備・招待するユーザの空き時間を選択 -->
           <button
+            v-if="isEditable"
             type="button" class="btn btn-outline"
             @click="onOpenSelectTimeDialog"
           >
@@ -471,20 +630,34 @@ const notificationUnits = [
       <!-- 出欠 -->
       <div v-if="isEditMode" class="flex flex-col gap-1">
         <Label>出欠</Label>
-        <v-chip
-          size="small"
-          class="w-fit"
-          :class="[form.values.attendanceCd === '01' ? 'bg-primary!'
-            : form.values.attendanceCd === '02' && 'bg-red-500!']"
+        <Badge
+          v-if="isEditMode"
+          :severity="form.values.attendanceCd === '01' ? 'info'
+            : form.values.attendanceCd === '02' ? 'error' : ''"
+          class="w-fit min-w-11 justify-center"
         >
           {{ form.values.attendanceName }}
-        </v-chip>
-        <button
-          type="button" class="btn btn-outline mt-1 w-fit"
-          @click="onOpenReplyList"
-        >
-          回答一覧を表示
-        </button>
+        </Badge>
+        <div class="mt-1 flex gap-2">
+          <button
+            v-if="isEditMode && eventDetail?.meeting?.attendanceEnable"
+            type="button" class="btn btn-outline w-fit"
+            @click="onOpenAttendanceReply"
+          >
+            出欠を回答
+          </button>
+          <button
+            type="button" class="btn btn-outline w-fit"
+            @click="onOpenReplyList"
+          >
+            回答一覧を表示
+          </button>
+        </div>
+      </div>
+      <!-- カレンダー -->
+      <div v-if="isEditMode && !eventDetail?.meeting?.attendanceEnable" class="flex flex-col gap-1">
+        <Label>カレンダー</Label>
+        <p>{{ eventDetail?.calendarName }}</p>
       </div>
       <!-- 場所 -->
       <div class="flex flex-col gap-1">
@@ -493,6 +666,7 @@ const notificationUnits = [
           :id="`scheduleLocation__${formId}`"
           class="inputtext"
           name="scheduleLocation"
+          :disabled="!isEditable"
         />
       </div>
       <!-- 詳細 -->
@@ -508,6 +682,7 @@ const notificationUnits = [
             v-bind="field"
             class="textarea"
             rows="3"
+            :disabled="!isEditable"
           />
         </Field>
       </div>
@@ -518,18 +693,30 @@ const notificationUnits = [
           :id="`urlLink__${formId}`"
           class="inputtext"
           name="urlLink"
+          :disabled="!isEditable"
+          label="URLリンク"
         />
+        <TransitionHeight :show="!!form.errors.urlLink">
+          <ErrorMessage name="urlLink" class="text-error" />
+        </TransitionHeight>
+        <a
+          v-if="form.values.urlLink"
+          target="_blank" rel="noopener noreferrer"
+          class="btn btn-link w-fit cursor-pointer p-0!"
+          :href="form.values.urlLink"
+        >URLを表示</a>
       </div>
       <!-- アイコン -->
       <div class="flex flex-col gap-1">
         <Label>アイコン</Label>
         <label
+          v-if="isEditable || (!isEditable && !scheduleIcon && !scheduleColoredIcon)"
           class="inline-flex size-9 cursor-pointer flex-center rounded-full p-1 transition hover:bg-surface-inverted/20 has-checked:bg-surface-inverted/30"
         >
           <span>なし</span>
           <Field name="scheduleIconCd" type="radio" class="hidden" value="00" />
         </label>
-        <div class="flex gap-2">
+        <div v-if="isEditable" class="flex gap-2">
           <label
             v-for="icon in icons"
             :key="icon.name"
@@ -543,7 +730,18 @@ const notificationUnits = [
             <Field name="scheduleIconCd" type="radio" :value="icon.code" class="hidden" />
           </label>
         </div>
-        <div class="flex gap-2">
+        <label
+          v-else-if="scheduleIcon"
+          class="inline-flex w-fit cursor-pointer rounded-full p-1 transition hover:bg-surface-inverted/20 has-checked:bg-surface-inverted/30"
+          :title="scheduleIcon.title"
+        >
+          <Icon
+            :name="scheduleIcon.name"
+            size="28"
+          />
+          <Field name="scheduleIconCd" type="radio" :value="scheduleIcon.code" class="hidden" />
+        </label>
+        <div v-if="isEditable" class="flex gap-2">
           <label
             v-for="icon in coloredIcons"
             :key="icon.name"
@@ -558,9 +756,21 @@ const notificationUnits = [
             <Field name="scheduleIconCd" type="radio" :value="icon.code" class="hidden" />
           </label>
         </div>
+        <label
+          v-else-if="scheduleColoredIcon"
+          class="inline-flex w-fit cursor-pointer rounded-full p-1 transition hover:bg-surface-inverted/20 has-checked:bg-surface-inverted/30"
+          :title="scheduleColoredIcon.title"
+        >
+          <img
+            :src="`/img/schedule/${scheduleColoredIcon.name}.png`"
+            size="28"
+            class="size-7"
+          >
+          <Field name="scheduleIconCd" type="radio" :value="scheduleColoredIcon.code" class="hidden" />
+        </label>
       </div>
       <!-- 文字の色 -->
-      <div class="flex flex-col gap-1">
+      <div v-if="isEditable" class="flex flex-col gap-1">
         <Label>文字の色</Label>
         <div class="flex gap-2">
           <label
@@ -580,7 +790,7 @@ const notificationUnits = [
       <div class="flex flex-col gap-1">
         <Label>予定の通知</Label>
         <!-- line 1 -->
-        <div class="flex gap-2">
+        <div v-if="isEditable" class="flex gap-2">
           <Field
             v-slot="{ value, handleChange }"
             name="notificationCd1"
@@ -620,8 +830,11 @@ const notificationUnits = [
             />
           </Field>
         </div>
+        <div v-else-if="notificationText">
+          {{ notificationText.text1 }}
+        </div>
         <!-- line 2 -->
-        <div class="flex gap-2">
+        <div v-if="isEditable" class="flex gap-2">
           <Field
             v-slot="{ value, handleChange }"
             name="notificationCd2"
@@ -661,42 +874,62 @@ const notificationUnits = [
             />
           </Field>
         </div>
+        <div v-else-if="notificationText">
+          {{ notificationText.text2 }}
+        </div>
+      </div>
+      <!-- 登録者 -->
+      <div v-if="!isEditable && eventDetail" class="flex flex-col gap-1">
+        <Label>登録者</Label>
+        <p>{{ eventDetail.createUserName }}</p>
       </div>
     </div>
     <!-- actions -->
     <div class="flex justify-between gap-2 p-4 pt-2">
-      <div class="flex gap-2">
-        <button
-          type="button"
-          class="btn btn-text min-w-btn"
-          @click="setClose();"
-        >
-          キャンセル
-        </button>
-        <button
-          v-if="isEditMode"
-          type="button"
-          class="btn btn-text-error min-w-btn"
-        >
-          削除
-        </button>
-      </div>
-      <div class="flex gap-2">
-        <button
-          v-if="isEditMode"
-          type="button"
-          class="btn btn-text-primary min-w-btn"
-        >
-          複製
-        </button>
-        <Button
-          type="submit"
-          :loading="form.isSubmitting"
-          class="btn btn-primary min-w-btn"
-        >
-          {{ isEditMode ? '更新' : '登録' }}
-        </Button>
-      </div>
+      <template v-if="isEditable">
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="btn btn-text min-w-btn"
+            @click="setClose();"
+          >
+            キャンセル
+          </button>
+          <button
+            v-if="isEditMode"
+            type="button"
+            class="btn btn-text-error min-w-btn"
+            @click="onConfirmDelete"
+          >
+            削除
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button
+            v-if="isEditMode"
+            type="button"
+            class="btn btn-text-primary min-w-btn"
+            @click="duplicateMeeting"
+          >
+            複製
+          </button>
+          <Button
+            type="submit"
+            :loading="form.isSubmitting"
+            class="btn btn-primary min-w-btn"
+          >
+            {{ isEditMode ? '更新' : '登録' }}
+          </Button>
+        </div>
+      </template>
+      <button
+        v-else
+        type="button"
+        class="btn btn-text mx-auto min-w-btn"
+        @click="setClose();"
+      >
+        キャンセル
+      </button>
     </div>
   </Form>
 </template>

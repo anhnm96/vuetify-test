@@ -1,6 +1,6 @@
 import { localize, setLocale } from '@vee-validate/i18n'
 import ja from '@vee-validate/i18n/dist/locale/ja.json'
-import { one_of, required } from '@vee-validate/rules'
+import { one_of, required, url } from '@vee-validate/rules'
 import { configure, defineRule } from 'vee-validate'
 
 // 使用可能なルール一覧:
@@ -17,6 +17,13 @@ export default defineNuxtPlugin(() => {
       return required(value)
     }
     return true
+  })
+
+  defineRule('optional_url', (value: string) => {
+    if (!value || !value.length) {
+      return true
+    }
+    return url(value, { pattern: /^https?:\/\/.*$/ })
   })
 
   configure({

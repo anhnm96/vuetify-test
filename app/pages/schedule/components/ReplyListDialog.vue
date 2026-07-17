@@ -79,14 +79,14 @@ const filteredItems = computed(() => {
                   class="cursor-pointer"
                 >
                   <td>
-                    <v-chip
+                    <Badge
                       size="small"
-                      class="w-fit"
-                      :class="[item.attendanceCd === '01' ? 'bg-primary!'
-                        : item.attendanceCd === '02' && 'bg-red-500!']"
+                      class="w-fit min-w-11 justify-center"
+                      :severity="item.attendanceCd === '01' ? 'info'
+                        : item.attendanceCd === '02' ? 'error' : ''"
                     >
                       {{ item.attendanceName }}
-                    </v-chip>
+                    </Badge>
                   </td>
                   <td class="min-w-15 text-left" :title="item.userName">
                     <p class="line-clamp-2 break-all">

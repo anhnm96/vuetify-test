@@ -8,13 +8,14 @@ import { upsertSimpleSchedule } from '~/services/schedule'
 const props = defineProps<{
   startTimestamp: number
   endTimestamp?: number
+  alldayFlg?: string
   calendars: EditCalendarItem[]
   event?: ScheduleEvent
   setClose: () => void
 }>()
 const emit = defineEmits<{
   close: [value?: boolean]
-  showDetailForm: []
+  showDetailForm: [values: any]
 }>()
 
 const isEditMode = !!props.event
@@ -37,7 +38,7 @@ const endDate = props.endTimestamp ? formatDateTime(props.endTimestamp) : startD
 const endTime = props.startTimestamp !== props.endTimestamp ? dayjs(props.endTimestamp).format('HH:mm') : dayjs(props.startTimestamp).add(30, 'minute').format('HH:mm')
 const initialValues = {
   scheduleTitle: '無題の予定',
-  alldayFlg: '0',
+  alldayFlg: props.alldayFlg ?? '0',
   calendarId: props.calendars[0]?.calendarId,
   detailActionCd: 1,
   startDate,
@@ -102,6 +103,66 @@ function focusField(fieldName: string) {
   el.focus()
   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
+
+// 開始・終了の前後関係を保証する（終日なら日付のみ、そうでなければ日時で比較）
+// Đảm bảo thứ tự trước/sau của bắt đầu-kết thúc (終日 thì so theo ngày, không thì so theo ngày+giờ)
+// changed: どちらのフィールドが変更されたか（変更された側を正として、もう一方を合わせる）
+// changed: field nào vừa được đổi (giữ nguyên field đó, kéo field còn lại theo)
+function enforceDateOrder(changed: 'start' | 'end') {
+  const values = formRef.value?.values
+  if (!values) return
+  const allday = values.alldayFlg === '1'
+
+  if (!values.startDate || !values.endDate) return
+  if (!allday && (!values.startTime || !values.endTime)) return
+
+  const startVal = allday ? values.startDate : `${values.startDate} ${values.startTime.slice(0, 2)}:${values.startTime.slice(2)}`
+  const endVal = allday ? values.endDate : `${values.endDate} ${values.endTime.slice(0, 2)}:${values.endTime.slice(2)}`
+
+  if (compareDates(startVal, endVal) !== 1) return // start <= end: 問題なし / hợp lệ, không cần sửa
+
+  if (changed === 'start') {
+    // 開始が終了より後になった → 終了を開始の30分後に設定する（終日は日付のみ合わせる）
+    // Bắt đầu muộn hơn kết thúc → đặt kết thúc muộn hơn bắt đầu mới 30 phút (終日 thì chỉ gán ngày)
+    if (allday) {
+      formRef.value?.setFieldValue('endDate', values.startDate)
+    } else {
+      const newEnd = dayjs(startVal).add(30, 'minute')
+      formRef.value?.setFieldValue('endDate', newEnd.format('YYYY-MM-DD'))
+      formRef.value?.setFieldValue('endTime', newEnd.format('HHmm'))
+    }
+  } else {
+    // 終了が開始より前になった → 開始を終了の30分前に設定する（終日は日付のみ合わせる）
+    // Kết thúc sớm hơn bắt đầu → đặt bắt đầu sớm hơn kết thúc mới 30 phút (終日 thì chỉ gán ngày)
+    if (allday) {
+      formRef.value?.setFieldValue('startDate', values.endDate)
+    } else {
+      const newStart = dayjs(endVal).subtract(30, 'minute')
+      formRef.value?.setFieldValue('startDate', newStart.format('YYYY-MM-DD'))
+      formRef.value?.setFieldValue('startTime', newStart.format('HHmm'))
+    }
+  }
+}
+
+watch([() => formRef.value?.values.endDate, () => formRef.value?.values.endTime], () => {
+  enforceDateOrder('end')
+})
+
+watch([() => formRef.value?.values.startDate, () => formRef.value?.values.startTime], () => {
+  enforceDateOrder('start')
+})
+
+// 終日フラグの切り替え時にも整合性を再確認する（例: 終日中は日付のみ検証されるため、
+// 時刻表示に戻した際に開始時刻＞終了時刻のまま残っている場合がある）
+// Cũng kiểm tra lại khi bật/tắt 終日 (all-day) — ví dụ: khi đang all-day chỉ ngày được validate,
+// nên lúc quay lại chế độ có giờ, giờ bắt đầu > giờ kết thúc có thể vẫn còn sót lại
+watch(() => formRef.value?.values.alldayFlg, () => {
+  enforceDateOrder('start')
+})
+
+function onOpenDetailForm() {
+  emit('showDetailForm', toRaw(formRef.value?.values))
+}
 </script>
 
 <template>
@@ -120,6 +181,7 @@ function focusField(fieldName: string) {
         <Label required :for="`scheduleTitle__${formId}`">タイトル</Label>
         <Field
           :id="`scheduleTitle__${formId}`"
+          v-focus
           class="inputtext"
           :class="[form.errors.scheduleTitle && 'invalid']"
           name="scheduleTitle"
@@ -212,10 +274,11 @@ function focusField(fieldName: string) {
           </div>
         </div>
         <!-- 終日 -->
-        <Field v-slot="{ field }" name="alldayFlg">
+        <Field v-slot="{ value, handleChange }" name="alldayFlg" type="checkbox" checked-value="1" unchecked-value="0">
           <Checkbox
-            v-bind="field" label="終日" :label-props="{ class: 'mt-1 w-fit' }"
+            :model-value="value" label="終日" :label-props="{ class: 'mt-1 w-fit' }"
             true-value="1" false-value="0"
+            @update:model-value="handleChange($event, false)"
           />
         </Field>
       </div>
@@ -307,7 +370,7 @@ function focusField(fieldName: string) {
         <button
           type="button"
           class="btn btn-text-primary min-w-btn"
-          @click="$emit('showDetailForm')"
+          @click="onOpenDetailForm"
         >
           詳細入力
         </button>

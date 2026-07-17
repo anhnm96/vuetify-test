@@ -4,7 +4,7 @@ import dayjs from 'dayjs/esm'
 import { omit } from 'lodash-es'
 import UserSelectModal from '~/components/common/UserSelectModal.vue'
 import { SCHEDULE_CODE_LABEL_MAP, SCHEDULE_CODES, SCHEDULE_TYPE_LIST } from '~/constants/schedule'
-import { deleteSchedule, deleteTaskSchedule, getEventDetail, getInviteeList, getTaskScheduleCategories, upsertTaskSchedule } from '~/services/schedule'
+import { deleteTaskSchedule, getEventDetail, getInviteeList, getTaskScheduleCategories, upsertTaskSchedule } from '~/services/schedule'
 
 const props = defineProps<{
   startTimestamp: number
@@ -63,8 +63,9 @@ if (props.event) {
 const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
   `schedule/${props.event?.scheduleId}`,
   () => getEventDetail('task'),
-  { immediate: isEditMode, transform: (data) => {
+  { immediate: isEditMode, transform: (res) => {
     try {
+      const data = res
       // hh:mm -> hhmm
       const limitTime = data.todo?.limitTime?.replace(':', '') ?? ''
       formRef.value?.setValues({
@@ -105,7 +106,7 @@ const { data: groupList, pending: pendingGetGroupList, error: getGroupListError,
   },
 })
 
-const { data: categories, pending: pendingGetCategories, error: getCategoriesError, refresh: fetchCategories } = useAsyncData(() => getTaskScheduleCategories(), {
+const { data: categories, pending: pendingGetCategories, error: getCategoriesError, refresh: fetchCategories } = useAsyncData(() => getTaskScheduleCategories(props.event?.createUserId), {
   transform: (res) => {
     return [{ groupId: 0, groupName: '-- 選択 --' }, ...res.list]
   },
@@ -181,7 +182,11 @@ const PRIORITY_OPTIONS = [
 
 const isDeleting = ref(false)
 async function onConfirmDeleteTask() {
-  const res = await dialogStore.showConfirm({ description: '削除します。よろしいですか？' })
+  const res = await dialogStore.showConfirm({
+    title: '削除',
+    description: '削除します。よろしいですか？',
+    severity: 'error',
+  })
   if (!res) return
   try {
     isDeleting.value = true
@@ -242,21 +247,33 @@ async function onConfirmDeleteTask() {
           {{ SCHEDULE_CODE_LABEL_MAP[form.values.scheduleCd] }}
         </p>
       </div>
+      <!-- 登録者 -->
+      <div v-if="form.values?.todo?.requestUserName" class="flex flex-col gap-1">
+        <Label>登録者</Label>
+        <p>{{ form.values.todo.requestUserName }}</p>
+      </div>
       <!-- カテゴリ -->
       <div class="flex flex-col gap-1">
         <Label :for="`groupId__${formId}`">カテゴリ</Label>
-        <v-select
-          :id="`groupId__${formId}`"
-          v-model="form.values.groupId"
-          class="custom-input"
-          label=""
-          :items="categories"
-          variant="outlined"
-          item-title="groupName"
-          item-value="groupId"
-          hide-details
-          :loading="pendingGetCategories"
-        />
+        <Field
+          v-slot="{ value, handleChange }"
+          name="groupId"
+          label="カテゴリ"
+        >
+          <v-select
+            :id="`groupId__${formId}`"
+            :model-value="value"
+            class="custom-input"
+            label=""
+            :items="categories"
+            variant="outlined"
+            item-title="groupName"
+            item-value="groupId"
+            hide-details
+            :loading="pendingGetCategories"
+            @update:model-value="handleChange($event, false)"
+          />
+        </Field>
         <div v-if="getCategoriesError" class="flex items-center gap-1">
           <p>カテゴリの取得に失敗しました。</p>
           <button
@@ -272,6 +289,7 @@ async function onConfirmDeleteTask() {
         <Label required :for="`todolistName__${formId}`">タスク名</Label>
         <Field
           :id="`todolistName__${formId}`"
+          v-focus
           class="inputtext"
           :class="[form.errors.todolistName && 'invalid']"
           name="todolistName"
