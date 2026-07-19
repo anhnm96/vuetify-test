@@ -11,9 +11,10 @@ defineEmits<{
   afterLeave: []
 }>()
 
-const { data, refresh, status } = useAsyncData('attendance-list', () => getMeetingAttendance(props.scheduleId), {
-  default: () => [],
-  transform: res => res.list,
+const { data, refresh, status } = useQuery({
+  key: ['attendance-list', props.scheduleId],
+  query: () => getMeetingAttendance(props.scheduleId).then(res => res.list),
+  initialData: () => [],
 })
 const attendanceTypeOptions = [
   { label: '全て表示', value: '-1' },

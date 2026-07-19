@@ -103,57 +103,52 @@ if (props.event) {
 }
 
 const originalRepeatFlg = ref(false)
-const { data: eventDetail, refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
-  `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail('schedule'),
-  { immediate: isEditMode, transform: (res) => {
-    try {
-      const data = res
-      let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
-      let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
-      // hh:mm:ss -> hhmm
-      startTime = startTime.replace(':', '').slice(0, 4)
-      endTime = endTime.replace(':', '').slice(0, 4)
-      formRef.value?.setValues({
-        ...initialValues,
-        ...{
-          // scheduleCd: data.scheduleCd,
-          scheduleTitle: data.scheduleTitle,
-          alldayFlg: data.alldayFlg,
-          calendarId: data.calendarId,
-          calendarIds: data.calendarIds,
-          startDate,
-          startTime,
-          endDate,
-          endTime,
-          scheduleLocation: data.scheduleLocation,
-          details: data.details,
-          urlLink: data.urlLink,
-          scheduleIconCd: data.scheduleIconCd,
-          scheduleColor: data.scheduleColor ?? '000000',
-          scheduleId: data.scheduleId,
-          notificationCd1: data.notificationCd1 ?? '01',
-          notificationTime1: data.notificationTime1 ?? 0,
-          notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
-          notificationCd2: data.notificationCd2 ?? '01',
-          notificationTime2: data.notificationTime2 ?? 0,
-          notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
-          privateScheduleFlg: data.privateScheduleFlg === '2' ? '1' : data.privateScheduleFlg,
-          privateScheduleFlgOption: ['1', '2'].includes(data.privateScheduleFlg) ? data.privateScheduleFlg : undefined,
-        },
-      })
-      repeatForm.value = data.repeat
-      if (repeatForm.value) {
-        repeatFlg.value = true
-        originalRepeatFlg.value = true
-      }
-      return data
-    } catch (err) {
-      console.error('Failed to transform schedule data', err)
-      return null
+const { data: eventDetail, refresh: refreshSchedule, status: fetchScheduleStatus } = useQuery({
+  key: () => ['schedule', props.event?.scheduleId || 'new'],
+  query: () => getEventDetail('schedule').then((res) => {
+    const data = res
+    let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
+    let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
+    // hh:mm:ss -> hhmm
+    startTime = startTime.replace(':', '').slice(0, 4)
+    endTime = endTime.replace(':', '').slice(0, 4)
+    formRef.value?.setValues({
+      ...initialValues,
+      ...{
+        // scheduleCd: data.scheduleCd,
+        scheduleTitle: data.scheduleTitle,
+        alldayFlg: data.alldayFlg,
+        calendarId: data.calendarId,
+        calendarIds: data.calendarIds,
+        startDate,
+        startTime,
+        endDate,
+        endTime,
+        scheduleLocation: data.scheduleLocation,
+        details: data.details,
+        urlLink: data.urlLink,
+        scheduleIconCd: data.scheduleIconCd,
+        scheduleColor: data.scheduleColor ?? '000000',
+        scheduleId: data.scheduleId,
+        notificationCd1: data.notificationCd1 ?? '01',
+        notificationTime1: data.notificationTime1 ?? 0,
+        notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
+        notificationCd2: data.notificationCd2 ?? '01',
+        notificationTime2: data.notificationTime2 ?? 0,
+        notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
+        privateScheduleFlg: data.privateScheduleFlg === '2' ? '1' : data.privateScheduleFlg,
+        privateScheduleFlgOption: ['1', '2'].includes(data.privateScheduleFlg) ? data.privateScheduleFlg : undefined,
+      },
+    })
+    repeatForm.value = data.repeat
+    if (repeatForm.value) {
+      repeatFlg.value = true
+      originalRepeatFlg.value = true
     }
-  } },
-)
+    return data
+  }),
+  enabled: isEditMode,
+})
 const isEditable = computed(() => !isEditMode || (isEditMode && eventDetail.value?.editable))
 const scheduleIcon = computed(() => {
   if (isEditable.value) return

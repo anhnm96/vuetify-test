@@ -93,53 +93,49 @@ if (props.event) {
   })
 }
 
-const { data: eventDetail, refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
-  `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail('meeting'),
-  { immediate: isEditMode, transform: (res) => {
-    try {
-      const data = res
-      let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
-      let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
-      // hh:mm:ss -> hhmm
-      startTime = startTime.replace(':', '').slice(0, 4)
-      endTime = endTime.replace(':', '').slice(0, 4)
-      formRef.value?.setValues({
-        ...initialValues,
-        ...{
-          scheduleTitle: data.scheduleTitle,
-          alldayFlg: data.alldayFlg,
-          startDate,
-          startTime,
-          endDate,
-          endTime,
-          scheduleLocation: data.scheduleLocation,
-          details: data.details,
-          urlLink: data.urlLink,
-          scheduleIconCd: data.scheduleIconCd,
-          scheduleColor: data.scheduleColor ?? '000000',
-          scheduleId: data.scheduleId,
-          notificationCd1: data.notificationCd1 ?? '01',
-          notificationTime1: data.notificationTime1 ?? 0,
-          notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
-          notificationCd2: data.notificationCd2 ?? '01',
-          notificationTime2: data.notificationTime2 ?? 0,
-          notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
-          editable: data.editable,
-          meeting: data.meeting,
-          attendanceCd: data.meeting?.attendanceCd,
-          attendanceName: data.meeting?.attendanceName,
-          equipments: data.meeting?.equipment,
-          invitees: data.meeting?.invitees,
-          ownerUserId: data.meeting?.ownerUserId,
-        },
-      })
-      return data
-    } catch (err) {
-      console.error('Failed to transform schedule data', err)
-      return null
-    }
-  } },
+const { data: eventDetail, refresh: refreshSchedule, isLoading: loadingSchedule, error: scheduleError } = useQuery({
+  key: () => ['schedule', props.event?.scheduleId || 'new'],
+  query: () => getEventDetail('meeting').then((data) => {
+    let [startDate, startTime] = data.startDateString.split(' ') as [string, string]
+    let [endDate, endTime] = data.endDateString.split(' ') as [string, string]
+    // hh:mm:ss -> hhmm
+    startTime = startTime.replace(':', '').slice(0, 4)
+    endTime = endTime.replace(':', '').slice(0, 4)
+    formRef.value?.setValues({
+      ...initialValues,
+      ...{
+        scheduleTitle: data.scheduleTitle,
+        alldayFlg: data.alldayFlg,
+        startDate,
+        startTime,
+        endDate,
+        endTime,
+        scheduleLocation: data.scheduleLocation,
+        details: data.details,
+        urlLink: data.urlLink,
+        scheduleIconCd: data.scheduleIconCd,
+        scheduleColor: data.scheduleColor ?? '000000',
+        scheduleId: data.scheduleId,
+        notificationCd1: data.notificationCd1 ?? '01',
+        notificationTime1: data.notificationTime1 ?? 0,
+        notificationTimeUnit1: data.notificationTimeUnit1 ?? 1,
+        notificationCd2: data.notificationCd2 ?? '01',
+        notificationTime2: data.notificationTime2 ?? 0,
+        notificationTimeUnit2: data.notificationTimeUnit2 ?? 1,
+        editable: data.editable,
+        meeting: data.meeting,
+        attendanceCd: data.meeting?.attendanceCd,
+        attendanceName: data.meeting?.attendanceName,
+        equipments: data.meeting?.equipment,
+        invitees: data.meeting?.invitees,
+        ownerUserId: data.meeting?.ownerUserId,
+      },
+    })
+
+    return data
+  }),
+  enabled: isEditMode,
+},
 )
 
 const isEditable = computed(() => !isEditMode || (isEditMode && formRef.value?.values.editable))
@@ -152,17 +148,19 @@ const scheduleColoredIcon = computed(() => {
   return coloredIcons.find(i => i.code === formRef.value?.values.scheduleIconCd)
 })
 
-const { data: equipmentList, pending: pendingGetEquipmentList, error: getEquipmentListError, refresh: fetchEquipmentList } = useAsyncData('equiment-list', () => getEquipmentList(), {
-  transform: res => res.list,
+const { data: equipmentList, isLoading: isLoadingEquipmentList, error: errorEquipmentList, refresh: fetchEquipmentList } = useQuery({
+  key: ['equiment-list'],
+  query: () => getEquipmentList().then(res => res.list),
 })
 
-const { data: groupList, pending: pendingGetGroupList, error: getGroupListError, refresh: fetchGroupList } = useAsyncData(() => getInviteeList(), {
-  transform: (res) => {
+const { data: groupList, isLoading: isLoadingGroupList, error: errorGroupList, refresh: fetchGroupList } = useQuery({
+  key: ['group-list'],
+  query: () => getInviteeList().then((res) => {
     if (!isEditMode)
       formRef.value?.setFieldValue('invitees', [res.user])
     currentUserId.value = (res.user as any)?.userId
     return res.list
-  },
+  }),
 })
 
 async function duplicateMeeting() {
@@ -418,8 +416,8 @@ async function onConfirmDelete() {
     @submit="submitForm"
     @invalid-submit="onInvalidSubmit"
   >
-    <InnerLoading v-if="fetchScheduleStatus === 'pending' || isDeleting" />
-    <div v-else-if="fetchScheduleStatus === 'error'" class="absolute inset-0 z-10 grid place-items-center bg-abg/60 backdrop-blur-xs">
+    <InnerLoading v-if="loadingSchedule || isDeleting" />
+    <div v-else-if="scheduleError" class="absolute inset-0 z-10 grid place-items-center bg-abg/60 backdrop-blur-xs">
       <div class="flex flex-col items-center gap-2">
         <p>データの取得に失敗しました。</p>
         <button class="btn btn-outline-primary" @click="refreshSchedule()">
@@ -481,13 +479,13 @@ async function onConfirmDelete() {
         <div v-if="isEditable" class="flex gap-4">
           <Button
             type="button" class="btn-outline"
-            :loading="pendingGetEquipmentList"
-            :disabled="getEquipmentListError"
+            :loading="isLoadingEquipmentList"
+            :disabled="errorEquipmentList"
             @click="onOpenSelectEquimentsDialog"
           >
             設備を選択
           </Button>
-          <div v-if="getEquipmentListError" class="flex items-center gap-1">
+          <div v-if="errorEquipmentList" class="flex items-center gap-1">
             <p>データの取得に失敗しました。</p>
             <button
               class="btn btn-link border-none! p-0!"
@@ -509,13 +507,13 @@ async function onConfirmDelete() {
         <div v-if="isEditable" class="flex gap-4">
           <Button
             type="button" class="btn-outline"
-            :loading="pendingGetGroupList"
-            :disabled="getGroupListError"
+            :loading="isLoadingGroupList"
+            :disabled="errorGroupList"
             @click="onOpenSelectUsersDialog"
           >
             ユーザーを選択
           </Button>
-          <div v-if="getGroupListError" class="flex items-center gap-1">
+          <div v-if="errorGroupList" class="flex items-center gap-1">
             <p>データの取得に失敗しました。</p>
             <button
               class="btn btn-link border-none! p-0!"

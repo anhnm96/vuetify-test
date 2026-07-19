@@ -20,7 +20,12 @@ export default defineNuxtConfig({
     'vue-sonner/nuxt',
     '@vee-validate/nuxt',
     '@crazydos/nuxt-msw',
+    'vue-jsx-vapor/nuxt',
   ],
+  jsxVapor: {
+    interop: true,
+    macros: true,
+  },
   hooks: {
     'pages:extend': function (pages) {
       const pagesToRemove: NuxtPage[] = []
@@ -112,4 +117,12 @@ export default defineNuxtConfig({
   msw: {
     enable: true,
   },
+  experimental: {
+    typescriptPlugin: true,
+  },
+  // dxup: {
+  //   features: {
+  //     namedLayoutSlots: true,
+  //   },
+  // },
 })

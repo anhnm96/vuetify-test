@@ -60,42 +60,37 @@ if (props.event) {
   })
 }
 
-const { refresh: refreshSchedule, status: fetchScheduleStatus } = useAsyncData(
-  `schedule/${props.event?.scheduleId}`,
-  () => getEventDetail('task'),
-  { immediate: isEditMode, transform: (res) => {
-    try {
-      const data = res
-      // hh:mm -> hhmm
-      const limitTime = data.todo?.limitTime?.replace(':', '') ?? ''
-      formRef.value?.setValues({
-        ...initialValues,
-        ...{
-          groupId: data.todo?.groupId,
-          todolistName: data.todo?.todolistName,
-          todolistText: data.todo?.todolistText,
-          importanceDiv: data.todo?.importanceDiv,
-          priorityDiv: data.todo?.priorityDiv,
-          limitDate: data.todo?.limitDate,
-          limitTime,
-          members: data.todo?.members,
-          scheduleId: data.scheduleId,
-          complet: data.todo?.complet,
-          editable: data.editable,
-          todo: data.todo,
-          todoContentsId: data.todo?.todoListId,
-        },
-      })
-      if (!data.todo?.limitDate) {
-        unlimited.value = true
-      }
-      return data
-    } catch (err) {
-      console.error('Failed to transform schedule data', err)
-      return null
+const { refresh: refreshSchedule, isLoading: isLoadingSchedule, error: errorSchedule } = useQuery({
+  key: () => ['schedule', props.event?.scheduleId || 'new'],
+  query: () => getEventDetail('task').then((res) => {
+    const data = res
+    // hh:mm -> hhmm
+    const limitTime = data.todo?.limitTime?.replace(':', '') ?? ''
+    formRef.value?.setValues({
+      ...initialValues,
+      ...{
+        groupId: data.todo?.groupId,
+        todolistName: data.todo?.todolistName,
+        todolistText: data.todo?.todolistText,
+        importanceDiv: data.todo?.importanceDiv,
+        priorityDiv: data.todo?.priorityDiv,
+        limitDate: data.todo?.limitDate,
+        limitTime,
+        members: data.todo?.members,
+        scheduleId: data.scheduleId,
+        complet: data.todo?.complet,
+        editable: data.editable,
+        todo: data.todo,
+        todoContentsId: data.todo?.todoListId,
+      },
+    })
+    if (!data.todo?.limitDate) {
+      unlimited.value = true
     }
-  } },
-)
+    return data
+  }),
+  enabled: isEditMode,
+})
 
 const { data: groupList, pending: pendingGetGroupList, error: getGroupListError, refresh: fetchGroupList } = useAsyncData(() => getInviteeList(), {
   transform: (res) => {
@@ -214,8 +209,8 @@ async function onConfirmDeleteTask() {
     @submit="submitForm"
     @invalid-submit="onInvalidSubmit"
   >
-    <InnerLoading v-if="fetchScheduleStatus === 'pending' || isDeleting" />
-    <div v-else-if="fetchScheduleStatus === 'error'" class="absolute inset-0 z-10 grid place-items-center bg-abg/60 backdrop-blur-xs">
+    <InnerLoading v-if="isLoadingSchedule || isDeleting" />
+    <div v-else-if="errorSchedule" class="absolute inset-0 z-10 grid place-items-center bg-abg/60 backdrop-blur-xs">
       <div class="flex flex-col items-center gap-2">
         <p>データの取得に失敗しました。</p>
         <button class="btn btn-outline-primary" @click="refreshSchedule()">

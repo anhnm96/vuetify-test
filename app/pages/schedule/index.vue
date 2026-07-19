@@ -9,9 +9,10 @@ import Tab from '~/components/common/tab/Tab.vue'
 import TabIndicator from '~/components/common/tab/TabIndicator.vue'
 import TabList from '~/components/common/tab/TabList.vue'
 import Tabs from '~/components/common/tab/Tabs.vue'
-import { coloredIcons, icons, SCHEDULE_CODE_LABEL_MAP } from '~/constants/schedule'
+import { coloredIcons, icons } from '~/constants/schedule'
 import { getScheduleList, patchDetailSchedule } from '~/services/schedule'
 import CreateScheduleDialog from './components/CreateScheduleDialog.vue'
+import EventBlock from './components/EventBlock.vue'
 import RepeatMannerConfirmDialog from './components/RepeatMannerConfirmDialog.vue'
 import Sidebar from './components/Sidebar.vue'
 import 'dayjs/esm/locale/ja'
@@ -28,7 +29,7 @@ useHead({
 const dialogStore = useDialogStore()
 const toast = useToast()
 
-const openSidebar = ref(true)
+const openSidebar = ref(false)
 const selectedCalendarIds = ref<(string | number)[]>([])
 
 // main content
@@ -43,7 +44,7 @@ const events = ref<ScheduleEvent[]>([])
 // Currently selected view (1: Day, 2: Week, 3: Month, 4: Year)
 const viewMode = ref<ViewMode>(VIEW_MODE.WEEK)
 // The day the view is anchored to. Drives the visible date range.
-const selectedDay = ref<Dayjs>(dayjs())
+const selectedDay = ref<Dayjs>(dayjs('2026-07-12 08:00:00'))
 const calendar = useTemplateRef('calendar')
 
 // Date range to fetch: the month containing the anchored day, padded by a week
@@ -52,10 +53,10 @@ const fetchStart = computed(() => selectedDay.value.startOf('month').subtract(7,
 const fetchEnd = computed(() => selectedDay.value.endOf('month').add(7, 'day').format('YYYY-MM-DD'))
 
 // Get data for schedule. Refetches whenever the visible period (or view) changes.
-const { data: scheduleListRes, refresh: refreshScheduleList, pending: isScheduleListLoading } = await useAsyncData(
-  () => getScheduleList(fetchStart.value, fetchEnd.value, viewMode.value),
-  { watch: [fetchStart, fetchEnd] },
-)
+const { data: scheduleListRes, refresh: refreshScheduleList, isLoading: isScheduleListLoading } = useQuery({
+  key: () => ['schedule-list', fetchStart.value, fetchEnd.value, viewMode.value],
+  query: () => getScheduleList(fetchStart.value, fetchEnd.value, viewMode.value),
+})
 
 // Initialize the sidebar selection once, from the first response.
 let selectionInitialized = false
@@ -175,17 +176,6 @@ function getEventColor(event: any) {
   return `transparent`
 }
 
-function getDuration(d1: string, d2: string, isAllday: boolean) {
-  const start = dayjs(d1)
-  const end = dayjs(d2)
-  const diff = dayjs.duration(end.diff(start))
-  if (isAllday) return diff.humanize()
-  let res = ''
-  if (diff.days() > 0) res += `${diff.days()}日`
-  if (diff.hours() > 0) res += `${diff.hours()}時間`
-  if (diff.minutes() > 0) res += `${diff.minutes()}分`
-  return res
-}
 // #region now line
 function nowY() {
   return calendar.value ? `${calendar.value.timeToY?.(calendar.value.times.now)}px` : '-10px'
@@ -236,6 +226,9 @@ const extendOriginal = ref<number | null>(null) // リサイズ取消時に戻�
 const suppressClick = ref(false)
 // mousedown が既存イベント上か（終日イベントのクリックで作成が走るのを防ぐ）/ chặn tạo mới khi click event cả ngày
 const pointerDownOnEvent = ref(false)
+
+// ドラッグ/作成/リサイズ中はイベントのツールチップを抑止する / khi kéo/tạo/resize thì chặn tooltip của event
+const isInteracting = computed(() => !!dragEvent.value || !!createEvent.value)
 
 const defaultCalendarColor = () => scheduleListRes.value?.editCalendarList?.[0]?.calendarColor || '000000'
 
@@ -477,8 +470,8 @@ function toTime(tms: any) {
         </button>
         <!-- tabs -->
         <Tabs v-model:value="viewMode" class="text-center">
-          <TabList class="inline-flex gap-1 rounded-xl bg-elevated/60 p-1 backdrop-blur-sm">
-            <TabIndicator class="top-1/2 h-7 -translate-y-1/2 rounded-lg! bg-primary/10" />
+          <TabList class="inline-flex gap-1 rounded-xl border border-elevated bg-elevated/60 p-1 backdrop-blur-sm">
+            <TabIndicator class="top-1/2 h-7 -translate-y-1/2 rounded-lg! border border-primary/30 bg-primary/15" />
             <Tab class="h-7 rounded-lg! py-1" :value="VIEW_MODE.DAY">
               Day
             </Tab>
@@ -494,23 +487,25 @@ function toTime(tms: any) {
       </div>
       <!-- current date -->
       <div class="mt-4 flex items-center justify-between gap-4">
-        <button class="btn btn-outline" @click="goToToday">
-          Today
-        </button>
         <div class="flex items-center gap-2">
+          <button class="btn btn-outline" @click="goToToday">
+            Today
+          </button>
           <button class="btn btn-text rounded-full! px-2!" @click="goToPrev">
             <v-icon size="18">
               mdi-chevron-left
             </v-icon>
           </button>
-          <h3 class="text-xl font-semibold">
-            {{ activeDateLabel }}
-          </h3>
           <button class="btn btn-text rounded-full! px-2!" @click="goToNext">
             <v-icon size="18">
               mdi-chevron-right
             </v-icon>
           </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <h3 class="text-xl font-semibold">
+            {{ activeDateLabel }}
+          </h3>
         </div>
         <span class="min-w-btn" />
       </div>
@@ -548,109 +543,10 @@ function toTime(tms: any) {
             @click:event="onClickEvent"
           >
             <template #event="{ event, timed, start, singline }">
-              <div class="v-event-draggable event-block" :style="{ '--event-color': `#${event.calendarColor}` }">
-                <span v-if="start && timed" class="v-event-summary">
-                  <img v-if="event.iconTag === 'img'" :src="event.iconUrl" class="mr-0.5 inline size-3">
-                  <Icon v-if="event.iconTag === 'Icon'" :name="event.iconUrl" size="16" class="mr-0.5 translate-y-0.5" />
-                  <strong>{{ event.name }}</strong>
-                  <template v-if="singline">, </template>
-                  <br v-else>
-                  {{ formatDateTime(event.start, 'H:mm') }} ～ {{ formatDateTime(event.end, 'H:mm') }}
-                </span>
-                <span v-else class="v-event-summary">{{ event.name }}</span>
-                <Tooltip
-                  v-if="event.scheduleId"
-                  placement="right"
-                  class="min-w-60"
-                  :style="{ '--event-color': `#${event.calendarColor}`, 'maxWidth': 'min(360px, calc(100vw - 2rem))' }"
-                >
-                  <!-- header -->
-                  <div class="flex gap-2">
-                    <span class="h-8 w-1 rounded-full bg-(--event-color)" />
-                    <div class="flex flex-col">
-                      <span class="text-truncate text-base leading-tight font-semibold">{{ event.name }}</span>
-                      <span class="text-xs leading-tight font-medium text-muted">{{ SCHEDULE_CODE_LABEL_MAP[event.scheduleCd] }}</span>
-                    </div>
-                  </div>
-                  <!-- body -->
-                  <div class="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto">
-                    <!-- time -->
-                    <div v-if="event.alldayFlg === '0' && dayjs(event.start).isSame(dayjs(event.end), 'day')" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-clock-time-seven-outline
-                      </v-icon>
-                      <span>{{ formatDateTime(event.startDateString, 'HH:mm') }} ～ {{ formatDateTime(event.endDateString, 'HH:mm') }}</span>
-                    </div>
-                    <!-- date -->
-                    <div class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-calendar-blank-outline
-                      </v-icon>
-                      <span v-if="dayjs(event.start).isSame(dayjs(event.end), 'day')">{{ dayjs(event.startDateString).format('M月D日（dd）') }}</span>
-                      <span v-else>
-                        <template v-if="event.alldayFlg === '1'">{{ dayjs(event.startDateString).format('M月D日（dd）') }} ～ {{ dayjs(event.endDateString).format('M月D日（dd）') }}</template>
-                        <template v-else>{{ dayjs(event.startDateString).format('M月D日（dd）HH:mm') }} ～<br>{{ dayjs(event.endDateString).format('M月D日（dd）HH:mm') }}</template>
-                      </span>
-                    </div>
-                    <!-- duration -->
-                    <div class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-alarm
-                      </v-icon>
-                      <span>{{ getDuration(event.startDate, event.endDate, event.alldayFlg === '1') }}</span>
-                    </div>
-                    <!-- calendar name -->
-                    <div class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-calendar-account-outline
-                      </v-icon>
-                      <span>{{ event.calendarName }}</span>
-                    </div>
-                    <!-- invitees -->
-                    <div v-if="event.memberNames" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-account-group-outline
-                      </v-icon>
-                      <span>{{ event.memberNames }}</span>
-                    </div>
-                    <!-- location -->
-                    <div v-if="event.scheduleLocation" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-map-marker-outline
-                      </v-icon>
-                      <span>{{ event.scheduleLocation }}</span>
-                    </div>
-                    <!-- url link -->
-                    <div v-if="event.urlLink" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-link
-                      </v-icon>
-                      <a
-                        :href="event.urlLink"
-                        target="_blank" rel="noopener noreferrer"
-                        class="text-primary-500 hover:underline"
-                      >{{ event.urlLink }}</a>
-                    </div>
-                    <!-- details -->
-                    <div v-if="event.details" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-information-outline
-                      </v-icon>
-                      <span>{{ event.details }}</span>
-                    </div>
-                    <!-- register -->
-                    <div v-if="event.createUserName" class="flex items-start gap-2 leading-tight">
-                      <v-icon class="translate-y-px" size="12" style="color: var(--event-color)">
-                        mdi-account-edit-outline
-                      </v-icon>
-                      <span>{{ event.createUserName }}</span>
-                    </div>
-                  </div>
-                </Tooltip>
-              </div>
+              <EventBlock :event="event as any" :timed="timed" :start="start" :singline="singline" :dragging="isInteracting" />
               <div
                 v-if="timed && event.editable !== false"
-                class="v-event-drag-bottom"
+                class="v-event-drag-bottom hit-area-y-0.5"
                 @mousedown="extendBottom($event, event as any)"
               />
             </template>
@@ -706,14 +602,14 @@ function toTime(tms: any) {
   @apply bg-abg/60;
 }
 
-.v-event-draggable {
-  padding-left: 6px;
-}
-
 :deep(.v-event-timed) {
   user-select: none;
   -webkit-user-select: none;
   border: none;
+
+  &:hover .v-event-drag-bottom::after {
+    display: block;
+  }
 }
 
 .v-event-drag-bottom {
@@ -736,19 +632,6 @@ function toTime(tms: any) {
     opacity: 0.8;
     content: '';
   }
-
-  &:hover::after {
-    display: block;
-  }
-}
-
-.event-block {
-  @apply rounded-md bg-(--event-color)/20 hover:bg-(--event-color)/25 border-l-4 border-(--event-color) text-(--event-color) h-full transition-colors;
-  color: color-mix(in srgb, var(--event-color) 100%, black 30%);
-}
-
-.dark .event-block {
-  color: color-mix(in srgb, var(--event-color) 100%, white 30%);
 }
 
 :deep(.v-event-more) {

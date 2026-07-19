@@ -14,6 +14,9 @@ const props = withDefaults(defineProps<{
   hideDelay?: number
   offset?: number
   trigger?: string
+  // when true, the tooltip never shows (and hides if already visible) —
+  // e.g. while the anchored element is being dragged
+  disabled?: boolean
 }>(), {
   target: true,
   attachTo: 'body',
@@ -62,7 +65,14 @@ watch(modelValue, (value) => {
   else if (value === false) hide()
 })
 
+// Disabling mid-hover must dismiss an already-visible tooltip.
+watch(() => props.disabled, (value) => {
+  if (value) hide()
+})
+
 function show() {
+  if (props.disabled) return
+
   clearTimeout(hideTimeout)
   hideTimeout = undefined
 
@@ -176,15 +186,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport :disabled="!attachTo" :to="attachTo">
+  <Teleport v-if="modelValue" :disabled="!attachTo" :to="attachTo">
     <div
-      v-if="modelValue"
       ref="tooltipEl"
       class="tooltip-container hit-area"
       :style="{ ...floatingStyles, ...hitAreaVar }"
       @mouseleave="handleTooltipMouseLeave"
     >
-      <Transition appear :name="animate" @after-leave="modelValue = false">
+      <Transition appear :name="animate" @after-leave="isVisible || (modelValue = false)">
         <div v-if="isVisible" :style="{ '--trigger-origin': getTransformOrigin(placement) }">
           <span ref="arrowEl" class="arrow" :style="arrowConfig.style">
             <svg :width="arrowConfig.width" :height="arrowConfig.height" :viewBox="arrowConfig.viewBox">

@@ -1,6 +1,7 @@
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import antfu from '@antfu/eslint-config'
+import vueJsxVapor from '@vue-jsx-vapor/eslint'
 import pluginTailwindcss from 'eslint-plugin-tailwindcss'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -32,4 +33,5 @@ export default antfu(
       },
     },
   },
+  vueJsxVapor(),
 )
